@@ -1,7 +1,7 @@
 {
   "api": 1,
   "id": "kings-race",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "license": "MIT",
   "author": {
     "name": "jaronoah"
@@ -23,15 +23,20 @@
     }
   ],
   "app": {
-    "url": "https://github.com/Pokled/nodyx-battle/releases/download/v0.3.3/kings-race-app-0.3.3.zip",
-    "sha256": "42545e49eabbfeee1f88d5394be6023f8f68eb71db6a1d677aad4b8d896d6e80",
-    "bytes": 15104772
+    "url": "https://github.com/Pokled/nodyx-battle/releases/download/v0.4.0/kings-race-app-0.4.0.zip",
+    "sha256": "78f94766fc827bd3dfcc9aee0bc6c152a0a00c1b48a1c9fec27d8d46f408d60b",
+    "bytes": 15113462
   },
   "permissions": {
     "identity": [
       "username",
       "avatar"
     ],
-    "realtime": true
+    "realtime": true,
+    "storage": {
+      "user": "16kb",
+      "instance": "64kb",
+      "instance_write": true
+    }
   }
 }

@@ -31,7 +31,68 @@
   var matchStarted = false
   var currentSeed = 0
 
-  var cb = { lobby: null, speaking: null, message: null, snapshot: null, matchStart: null }
+  var cb = {
+    lobby: null, speaking: null, message: null, snapshot: null, matchStart: null,
+    syncRequest: null
+  }
+
+  // --- persistance (records perso + classement d'instance) --------
+  // La frame est SAME-ORIGIN avec l'instance : elle appelle /storage
+  // directement (le port ne sert qu'au temps-reel). Jeton court passe dans
+  // le boot, re-emis via l'evenement 'session'.
+  // Cf SPECS/NODYX_ACTIVITIES_CDC.md §10.
+  var stg = { url: '', surface: '', token: null }
+  var stgCache = {}   // "scope/key" -> valeur JSON deja lue
+
+  function stgKey(scope, key) { return String(scope) + '/' + String(key) }
+
+  function stgFetch(op, scope, key, value, retried) {
+    if (!stg.url || !stg.token) {
+      // pas encore de jeton : on en redemande un a l'hote et on abandonne
+      // cet appel (le jeu reessaiera au prochain evenement).
+      portSend('session.refresh')
+      return Promise.resolve(null)
+    }
+    var body = { op: op, scope: scope, key: key }
+    if (op === 'set') body.value = value
+    return fetch(stg.url, {
+      method: 'POST',
+      headers: {
+        'authorization': 'Bearer ' + stg.token,
+        'x-nodyx-surface': stg.surface,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      if (res.status === 401 && !retried) {
+        // jeton expire en pleine partie : on en redemande un, une seule fois.
+        portSend('session.refresh')
+        return new Promise(function (r) { setTimeout(r, 600) })
+          .then(function () { return stgFetch(op, scope, key, value, true) })
+      }
+      if (!res.ok) return null
+      return res.json().then(function (j) { return j ? j.result : null })
+    }).catch(function () { return null })
+  }
+
+  var storage = {
+    load: function (scope, key) {
+      return stgFetch('get', scope, key, null, false).then(function (v) {
+        stgCache[stgKey(scope, key)] = (v === undefined ? null : v)
+        return v
+      })
+    },
+    save: function (scope, key, valueJson) {
+      var v
+      try { v = JSON.parse(valueJson) } catch (_) { return Promise.resolve(null) }
+      stgCache[stgKey(scope, key)] = v
+      return stgFetch('set', scope, key, v, false)
+    },
+    read: function (scope, key) {
+      var k = stgKey(scope, key)
+      return JSON.stringify(k in stgCache ? stgCache[k] : null)
+    }
+  }
 
   // userId -> { id, name, avatar_url, avatar_png, color, ready, _seat }
   var roster = new Map()
@@ -117,6 +178,7 @@
   function applyMatchStart(seed) {
     if (matchStarted) return
     matchStarted = true
+    if (window.NodyxBattle) window.NodyxBattle.__matchRunning = true
     currentSeed = seed | 0
     // Le roster est LOCAL (chaque client a le sien, avatars compris depuis son
     // boot) : on ne le fait pas transiter par le bus (trop gros, plafonne a 8 Ko).
@@ -134,11 +196,21 @@
       case 'speaking':      setSpeaking(d.userId, d.speaking); break
       case 'snap':          if (cb.snapshot) cb.snapshot(String(d.from), String(d.blob)); break
       case 'msg':           onRoomMsg(String(d.from), d.payload || {}); break
+      case 'session':
+        // L'hote a frappe un jeton frais (le notre a expire, ou il n'etait
+        // pas pret au boot). On rejoue les lectures en cache.
+        stg.token = d.token || null
+        break
       case 'sync':
         // Un arrivant demande l'etat courant : seul le host repond.
         if (isHostNow()) {
-          if (matchStarted) room.send({ k: 'match_start', seed: currentSeed })
-          else fireLobby()
+          if (matchStarted) {
+            room.send({ k: 'match_start', seed: currentSeed })
+            // laisse MatchDirector renvoyer l'etat detaille (manche, phase, PV)
+            if (cb.syncRequest) cb.syncRequest(String(d.from || ''))
+          } else {
+            fireLobby()
+          }
         }
         break
     }
@@ -158,6 +230,7 @@
   // --- window.NodyxBattle : contrat attendu par net_nodyx.gd -----
   window.NodyxBattle = {
     __ready: false,
+    __matchRunning: false,
 
     me: function () {
       if (!BOOT || !BOOT.user) return { id: '', name: '', avatar: '', avatar_png: '' }
@@ -181,7 +254,26 @@
     },
     onMessage:    function (fn) { cb.message = fn },
     onSnapshot:   function (fn) { cb.snapshot = fn },
-    onMatchStart: function (fn) { cb.matchStart = fn },
+    // Rejoue immediatement si un match est deja en cours : un client qui
+    // (re)demarre a froid lie ce callback APRES avoir recu match_start.
+    onMatchStart: function (fn) {
+      cb.matchStart = fn
+      if (matchStarted && fn) fn(currentSeed, JSON.stringify(rosterArray()))
+    },
+    // L'hote recoit une demande de resync d'un pair (arg = son userId).
+    onSyncRequest: function (fn) { cb.syncRequest = fn },
+
+    // Persistance : records perso (scope 'user') / classement ('instance').
+    storage: storage,
+    loadStats:  function () { return storage.load('user', 'stats') },
+    statsJson:  function () { return storage.read('user', 'stats') },
+    saveStats:  function (json) { return storage.save('user', 'stats', json) },
+    loadBoard:  function () { return storage.load('instance', 'leaderboard') },
+    boardJson:  function () { return storage.read('instance', 'leaderboard') },
+    saveBoard:  function (json) { return storage.save('instance', 'leaderboard', json) },
+
+    // Demande explicite de resync (utilisee au (re)demarrage a froid).
+    requestResume: function () { room.sync() },
 
     ready: function (on) {
       var r = roster.get(selfId())
@@ -216,10 +308,20 @@
     if (PORT.start) PORT.start()
 
     BOOT = d
+    if (d.storage) {
+      stg.url = String(d.storage.url || '')
+      stg.surface = String(d.storage.surface || '')
+      stg.token = d.storage.token || null
+    }
     setRoster(d.members || [])
     ready = true
     window.NodyxBattle.__ready = true
     PORT.postMessage({ event: 'ready' })
+
+    // Un client qui (re)demarre demande l'etat courant : si une partie tourne
+    // deja dans ce salon, l'hote repond match_start (+ MatchDirector renvoie
+    // manche / phase / PV des rois en cmd cible).
+    setTimeout(function () { if (!matchStarted) room.sync() }, 400)
   }
 
   window.addEventListener('message', onWindowMessage)

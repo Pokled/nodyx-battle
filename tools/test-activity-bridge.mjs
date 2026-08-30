@@ -60,6 +60,7 @@ class Pane {
     this.win._deliver({
       p: 1, type: 'nodyx:activity-boot', activity: 'kings-race', version: 'test',
       user: this.user, members: MEMBERS, locale: 'fr', theme: {},
+      storage: { url: '/api/v1/extensions/kings-race/storage', surface: 'activity:battle', token: 't-' + this.user.id },
     }, [ch.port2])
   }
   _fromGuest(d) {
@@ -164,6 +165,50 @@ bob.api().sendSnapshot(Buffer.from([1, 2, 3, 4, 5]).toString('base64'))
 await tick()
 assert.equal((seen.alice.snaps || []).length, 1); ok('Alice recoit le snapshot de Bob')
 assert.equal(seen.alice.snaps[0].from, 'u-bob'); ok('from = l\'emetteur')
+
+console.log('onMatchStart rejoue pour un auditeur tardif (redemarrage a froid)')
+let replayedSeed = null
+bob.api().onMatchStart((seed) => { replayedSeed = seed })
+assert.equal(replayedSeed, 123456); ok('bind APRES match_start -> rappel immediat, meme seed')
+assert.equal(bob.api().__matchRunning, true); ok('__matchRunning expose pour la sonde de reconnexion')
+
+console.log('onSyncRequest : l\'arbitre est prevenu quand un pair demande l\'etat')
+let syncFrom = null
+alice.api().onSyncRequest((from) => { syncFrom = from })
+bob.api().requestResume()          // -> room.sync
+await tick()
+assert.equal(syncFrom, 'u-bob'); ok('Alice (siege 0, match en cours) recoit la demande de resync de Bob')
+
+console.log('stockage : records perso et classement')
+const fetchCalls = []
+globalThis.fetch = async (url, opts) => {
+  fetchCalls.push({ url, opts })
+  return { ok: true, status: 200, json: async () => ({ result: { games: 3, wins: 2 } }) }
+}
+assert.equal(alice.api().statsJson(), 'null'); ok('statsJson() vide avant toute lecture')
+await alice.api().loadStats()
+assert.deepEqual(JSON.parse(alice.api().statsJson()), { games: 3, wins: 2 }); ok('loadStats() remplit le cache lu par Godot')
+const getCall = fetchCalls.find(c => JSON.parse(c.opts.body).op === 'get')
+assert.equal(getCall.opts.headers['authorization'], 'Bearer t-u-alice'); ok('jeton d\'activite dans l\'entete')
+assert.equal(getCall.opts.headers['x-nodyx-surface'], 'activity:battle'); ok('surface activity:battle dans l\'entete')
+
+fetchCalls.length = 0
+await alice.api().saveStats(JSON.stringify({ games: 4, wins: 2, best_wave: 12 }))
+const setCall = fetchCalls[0]
+assert.equal(JSON.parse(setCall.opts.body).op, 'set'); ok('saveStats -> op set')
+assert.equal(JSON.parse(setCall.opts.body).scope, 'user'); ok('records perso en scope user')
+assert.deepEqual(JSON.parse(setCall.opts.body).value, { games: 4, wins: 2, best_wave: 12 }); ok('valeur transmise')
+
+fetchCalls.length = 0
+await alice.api().saveBoard(JSON.stringify([{ id: 'u-alice', wins: 1 }]))
+assert.equal(JSON.parse(fetchCalls[0].opts.body).scope, 'instance'); ok('classement en scope instance')
+
+console.log('stockage : jeton renouvele par l\'hote (evenement session)')
+alice.toGuest({ event: 'session', token: 't-frais' })
+await tick()
+fetchCalls.length = 0
+await alice.api().saveStats(JSON.stringify({ games: 5 }))
+assert.equal(fetchCalls[0].opts.headers['authorization'], 'Bearer t-frais'); ok('les appels suivants portent le jeton frais')
 
 console.log(`\n${PASS} assertions vertes : le pont d'activite fait ce qu'il annonce.`)
 process.exit(0)   // les MessagePort ouverts gardent la boucle Node vivante

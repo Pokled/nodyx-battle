@@ -129,6 +129,9 @@ class Pane {
       members: MEMBERS,
       locale: 'fr',
       theme: {},
+      // Stockage : hors instance il n'y a pas de vrai /storage. On passe un
+      // jeton bidon ; les fetch echouent proprement, le jeu tourne sans records.
+      storage: { url: '/api/v1/extensions/kings-race/storage', surface: 'activity:battle', token: 'mock' },
     }, '*', [ch.port2])
     log('k', `[${this.user.name}] boot envoye`)
   }

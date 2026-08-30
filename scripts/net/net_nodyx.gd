@@ -14,11 +14,16 @@ extends NetBackend
 ##     onSpeaking(fn)  fn(id, bool)
 ##     onMessage(fn)   fn(fromId, channel, payloadJson)
 ##     onSnapshot(fn)  fn(fromId, base64)
-##     onMatchStart(fn) fn(seed, rosterJson)
+##     onMatchStart(fn) fn(seed, rosterJson)   (rejoue si un match tourne deja)
+##     onSyncRequest(fn) fn(fromId)            (l'arbitre : un pair demande l'etat)
 ##     ready(bool)     setReady
 ##     start(seed)     host lance
 ##     send(channel, payloadJson, reliable, toId)
 ##     sendSnapshot(base64)
+##     requestResume() demande l'etat courant (redemarrage a froid)
+##     __matchRunning  bool : une partie tourne dans ce salon
+##     loadStats()/statsJson()/saveStats(json)      records perso (scope user)
+##     loadBoard()/boardJson()/saveBoard(json)      classement (scope instance, arbitre)
 ##   }
 ##
 ## ECRIT MAIS INERTE tant qu'aucune instance Nodyx n'est branchee : si
@@ -46,6 +51,7 @@ func open(_opts: Dictionary) -> void:
 	_bind("onMessage", _on_message)
 	_bind("onSnapshot", _on_snapshot)
 	_bind("onMatchStart", _on_match_start)
+	_bind("onSyncRequest", _on_sync_request)
 
 
 func _bind(hook: String, fn: Callable) -> void:
@@ -80,9 +86,17 @@ func broadcast_snapshot(bytes: PackedByteArray) -> void:
 func _on_lobby(args: Array) -> void:
 	var v = JSON.parse_string(String(args[0])) if args.size() > 0 else []
 	# Le host (siege 0) peut changer si quelqu'un quitte le salon : on le
-	# reevalue a chaque mise a jour du roster.
-	if _js: is_host = bool(_js.isHost())
+	# reevalue a chaque mise a jour du roster et on previent si ca bascule.
+	if _js:
+		var now := bool(_js.isHost())
+		if now != is_host:
+			is_host = now
+			host_changed.emit(now)
 	lobby_changed.emit(v if v is Array else [])
+
+
+func _on_sync_request(args: Array) -> void:
+	sync_requested.emit(String(args[0]) if args.size() > 0 else "")
 
 
 func _on_speaking(args: Array) -> void:

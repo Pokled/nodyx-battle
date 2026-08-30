@@ -23,6 +23,7 @@ Versus="*res://scripts/versus.gd"
 Net="*res://scripts/net/net.gd"
 MatchDirector="*res://scripts/match_director.gd"
 PlayerAvatars="*res://scripts/player_avatars.gd"
+Records="*res://scripts/records.gd"
 Audio="*res://scripts/audio.gd"
 Fx="*res://scripts/fx.gd"
 

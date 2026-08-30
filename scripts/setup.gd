@@ -11,6 +11,7 @@ var _mode_btns: Dictionary = {}
 var _title: Label
 var _host_edit: LineEdit
 var _code_edit: LineEdit
+var _records_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -90,6 +91,14 @@ func _ready() -> void:
 	_count.add_theme_font_size_override("font_size", 14)
 	_count.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	col.add_child(_count)
+
+	# Records du joueur + classement de l'instance (activite Nodyx seulement).
+	if GameState.in_nodyx_activity:
+		_records_box = VBoxContainer.new()
+		_records_box.add_theme_constant_override("separation", 3)
+		col.add_child(_records_box)
+		Records.changed.connect(_refresh_records)
+		_refresh_records()
 
 	for id in Specs.ORDER:
 		col.add_child(_make_card(id))
@@ -210,6 +219,36 @@ func _toggle(id: String, on: bool) -> void:
 func _refresh() -> void:
 	_count.text = "Choisis-en %d de plus" % (3 - _chosen.size()) if _chosen.size() < 3 else "Pret."
 	_start.disabled = _chosen.size() != 3
+
+
+## Carte "TES RECORDS" + top 5 de l'instance. Alimentee par l'autoload Records
+## (lecture asynchrone : peut arriver quelques secondes apres l'ouverture).
+func _refresh_records() -> void:
+	if not is_instance_valid(_records_box):
+		return
+	for c in _records_box.get_children():
+		c.queue_free()
+	var s: Dictionary = Records.stats
+	if not s.is_empty():
+		var line := Label.new()
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		line.add_theme_font_size_override("font_size", 12)
+		line.add_theme_color_override("font_color", Palette.KING)
+		line.text = "TES RECORDS   ·   %d parties   ·   %d victoires   ·   meilleure vague %d" % [
+			int(s.get("games", 0)), int(s.get("wins", 0)), int(s.get("best_wave", 0))]
+		_records_box.add_child(line)
+	var board: Array = Records.leaderboard
+	if not board.is_empty():
+		var head := Label.new()
+		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		head.add_theme_font_size_override("font_size", 11)
+		head.add_theme_color_override("font_color", Palette.TEXT_DIM)
+		var parts: Array = []
+		for i in mini(5, board.size()):
+			var e: Dictionary = board[i]
+			parts.append("%d. %s (%d)" % [i + 1, String(e.get("name", "?")), int(e.get("wins", 0))])
+		head.text = "CLASSEMENT DE L'INSTANCE   ·   " + "   ".join(parts)
+		_records_box.add_child(head)
 
 
 func _gen_code() -> String:

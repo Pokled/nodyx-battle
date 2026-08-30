@@ -54,6 +54,22 @@ Le bus ne renvoie pas à l'expéditeur : `MatchDirector._broadcast_cmd` fait
 | `round_end` | host | `{n}` | retour construction, `round_no + 1` |
 | `eliminated` | host | `{id}` | le joueur passe spectateur, s'il ne reste qu'un vivant : `match_over` |
 | `match_over` | host | `{winner}` | fin de partie |
+| `resync_plz` | pair qui (re)joint | `{}` | demande l'état détaillé du match à l'arbitre |
+| `match_state` | host | `{seed, n, ph, players:[{id,hp,mx,al}]}` | envoi ciblé : restaure manche / phase / PV des rois chez le reconnecté |
+
+## Reconnexion & migration d'hôte (jalon 2, infra)
+
+- **Onglet rechargé / overlay rouvert** : `title.gd` sonde `window.NodyxBattle.__matchRunning`
+  (via `requestResume()` → `room.sync`). Si une partie tourne, on saute droit dans `main.tscn` ;
+  `MatchDirector.attach()` demande `resync_plz`, l'arbitre renvoie `match_state`, le joueur
+  **spectate la manche en cours et rejoue au prochain `round_begin`** (plateau reconstruit vide,
+  PV du roi conservés).
+- **Fenêtre de reconnexion** : `MatchDirector._on_player_left` n'élimine plus instantanément ; il
+  arme 45 s (`RECONNECT_GRACE`). Tout `cmd` du joueur, ou son retour, annule le compte à rebours.
+- **Migration d'hôte** : si le siège 0 quitte le salon, `net_nodyx` détecte la bascule de
+  `is_host` et émet `Net.host_changed`. `MatchDirector` réarme les échéances host-only
+  (`_deadline`, `_straggler`, `_try_start_round`/`_try_end_round`) — l'état des `ready`/`wave_done`
+  était déjà suivi via le bus `cmd`.
 
 ## Barrière de manche
 

@@ -13,6 +13,8 @@ signal message(from_id: String, channel: String, payload: Dictionary)
 signal snapshot(from_id: String, bytes: PackedByteArray)
 signal speaking_changed(id: String, on: bool)
 signal disconnected(reason: String)
+signal host_changed(is_host: bool)
+signal sync_requested(from_id: String)
 
 enum Phase { OFFLINE, LOBBY, MATCH }
 
@@ -52,6 +54,8 @@ func configure(backend := "") -> void:
 	_backend.message.connect(func(f, c, p): message.emit(f, c, p))
 	_backend.snapshot.connect(func(f, b): snapshot.emit(f, b))
 	_backend.speaking_changed.connect(_on_speaking)
+	_backend.host_changed.connect(func(h): host_changed.emit(h))
+	_backend.sync_requested.connect(func(id): sync_requested.emit(id))
 	_backend.disconnected.connect(func(r):
 		phase = Phase.OFFLINE
 		disconnected.emit(r))

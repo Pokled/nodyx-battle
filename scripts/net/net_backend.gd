@@ -16,6 +16,11 @@ signal message(from_id: String, channel: String, payload: Dictionary)
 signal snapshot(from_id: String, bytes: PackedByteArray)
 signal speaking_changed(id: String, on: bool)
 signal disconnected(reason: String)
+## L'arbitre (host) a change en cours de session : le siege 0 a quitte le
+## salon vocal, un autre membre reprend la barriere de manche.
+signal host_changed(is_host: bool)
+## Un pair (re)demarre et demande l'etat courant du match (arg = son id).
+signal sync_requested(from_id: String)
 
 var local_id := ""
 var is_host := false

@@ -44,6 +44,12 @@ var _waves: Node = null
 var _deadline := -1.0
 var _digest_acc := 0.0
 var _straggler := -1.0        ## compte a rebours apres le 1er wave_done d'une manche
+var _resumed := false         ## on a rejoint un match en cours (etat restaure par l'hote)
+var _grace: Dictionary = {}   ## id -> secondes avant elimination (fenetre de reconnexion)
+var expect_resume := false    ## pose par title.gd : on entre dans main.tscn pour un match deja lance
+var _resync_wait := -1.0      ## filet : delai avant de repartir en BUILD si aucun match_state ne vient
+
+const RECONNECT_GRACE := 45.0
 
 
 func _ready() -> void:
@@ -51,6 +57,8 @@ func _ready() -> void:
 	Net.message.connect(_on_message)
 	Net.snapshot.connect(_on_snapshot)
 	Net.player_left.connect(_on_player_left)
+	Net.host_changed.connect(_on_host_changed)
+	Net.sync_requested.connect(_on_sync_requested)
 	set_process(false)
 
 
@@ -88,6 +96,10 @@ func _on_match_started(seed_val: int, roster: Array) -> void:
 	players.clear()
 	cmd_log.clear()
 	_incoming.clear()
+	_grace.clear()
+	_resumed = false
+	expect_resume = false
+	_resync_wait = -1.0
 	wave_seed = seed_val
 	winner = ""
 	round_no = 0
@@ -116,6 +128,20 @@ func attach(arena: Node, gs: Node, waves: Node) -> void:
 	set_process(true)
 	if not GameState.king_hp_changed.is_connected(_on_local_king):
 		GameState.king_hp_changed.connect(_on_local_king)
+	# Reconnexion : l'hote a deja restaure manche / phase / PV. On ne repart
+	# PAS a la manche 1 ; on spectate la manche en cours et on rejoue au
+	# prochain round_begin (le plateau se reconstruit vide en BUILD).
+	if _resumed or round_no > 0:
+		phase_changed.emit(phase)
+		return
+	if expect_resume:
+		# On entre dans main.tscn pour un match deja lance mais l'etat detaille
+		# n'est pas encore arrive : on le demande et on patiente en spectateur.
+		phase = Phase.COMBAT
+		phase_changed.emit(phase)
+		Net.send("cmd", {"t": "resync_plz"})
+		_resync_wait = 6.0    # filet : personne ne repond -> on repart en BUILD
+		return
 	_begin_build(1)
 
 
@@ -281,7 +307,15 @@ func _on_message(from_id: String, channel: String, payload: Dictionary) -> void:
 
 
 func _apply_cmd(from_id: String, p: Dictionary) -> void:
+	# Tout signe de vie d'un joueur en fenetre de reconnexion annule sa
+	# future elimination.
+	if from_id != "" and _grace.has(from_id):
+		_grace.erase(from_id)
 	match p.get("t", ""):
+		"resync_plz":
+			_on_sync_requested(from_id)
+		"match_state":
+			_apply_match_state(p)
 		"ready":
 			var ps: PlayerState = players.get(String(p.get("id", from_id)), null)
 			if ps != null:
@@ -328,14 +362,90 @@ func _on_snapshot(from_id: String, bytes: PackedByteArray) -> void:
 
 
 func _on_player_left(id: String) -> void:
-	if players.has(id) and players[id].alive:
-		if Net.is_host():
-			_broadcast_cmd({"t": "eliminated", "id": id})
+	# Un onglet qui plante ou une coupure passagere ne doit pas eliminer
+	# instantanement : on arme une fenetre de reconnexion. Tout cmd du joueur,
+	# ou son retour dans le salon, annule le compte a rebours (cf _apply_cmd,
+	# _on_host_changed via lobby).
+	if players.has(id) and players[id].alive and not _grace.has(id):
+		_grace[id] = RECONNECT_GRACE
+
+
+func _on_host_changed(now_host: bool) -> void:
+	# Le siege 0 a quitte le salon en cours de partie : un autre membre reprend
+	# l'arbitrage. Il suivait deja le bus cmd, il ne lui manque que d'armer les
+	# echeances host-only.
+	if not active():
+		return
+	if now_host:
+		if phase == Phase.BUILD:
+			_deadline = BUILD_DEADLINE
+			_try_start_round()
+		elif phase == Phase.COMBAT:
+			_try_end_round()
+	else:
+		_deadline = -1.0
+		_straggler = -1.0
+
+
+func _on_sync_requested(from_id: String) -> void:
+	# Un pair (re)demarre : l'arbitre lui renvoie l'etat detaille du match.
+	if not Net.is_host() or phase == Phase.IDLE or players.is_empty():
+		return
+	var ps_arr: Array = []
+	for id in players:
+		var ps: PlayerState = players[id]
+		ps_arr.append({"id": id, "hp": ps.king_hp, "mx": ps.king_max, "al": ps.alive})
+	var msg := {"t": "match_state", "seed": wave_seed, "n": round_no, "ph": phase, "players": ps_arr}
+	if from_id != "":
+		Net.send("cmd", msg, true, from_id)
+	else:
+		Net.send("cmd", msg)
+
+
+## Recu par un client qui vient de (re)joindre un match en cours.
+func _apply_match_state(p: Dictionary) -> void:
+	if _resumed or round_no > 0:
+		return   # deja restaure, on ne se fait pas remonter le temps
+	wave_seed = int(p.get("seed", wave_seed))
+	round_no = maxi(1, int(p.get("n", 1)))
+	phase = int(p.get("ph", Phase.BUILD)) as Phase
+	for e in p.get("players", []):
+		var ps: PlayerState = players.get(String(e.get("id", "")), null)
+		if ps == null:
+			continue
+		ps.king_hp = int(e.get("hp", ps.king_hp))
+		ps.king_max = int(e.get("mx", ps.king_max))
+		ps.alive = bool(e.get("al", true))
+		ps.ready = not ps.alive
+		ps.wave_done = not ps.alive
+	_resumed = true
+	expect_resume = false
+	_resync_wait = -1.0
+	roster_changed.emit()
+	phase_changed.emit(phase)
 
 
 # --- diffusion du digest local (appele par main durant COMBAT) ----
 
 func _process(delta: float) -> void:
+	# Filet de reconnexion : si l'etat detaille n'est jamais venu, on repart.
+	if _resync_wait > 0.0:
+		_resync_wait -= delta
+		if _resync_wait <= 0.0:
+			_resync_wait = -1.0
+			if not _resumed and expect_resume:
+				expect_resume = false
+				_begin_build(1)
+
+	# Fenetre de reconnexion : quand elle expire, l'arbitre elimine.
+	if not _grace.is_empty():
+		for id in _grace.keys():
+			_grace[id] -= delta
+			if _grace[id] <= 0.0:
+				_grace.erase(id)
+				if Net.is_host() and players.has(id) and players[id].alive:
+					_broadcast_cmd({"t": "eliminated", "id": id})
+
 	if _deadline > 0.0:
 		_deadline -= delta
 		if _deadline <= 0.0:
