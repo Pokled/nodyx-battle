@@ -88,7 +88,9 @@ func _on_match_over(winner_id: String) -> void:
 	_recorded = true
 	var me := MatchDirector.local_id()
 	_bump_stats(winner_id == me, MatchDirector.round_no)
-	if Net.is_host():
+	# Le classement d'instance ne compte QUE les vraies parties multijoueur du
+	# canal vocal, pas l'entrainement contre l'IA (id "you", pas un vrai membre).
+	if Net.backend() == "nodyx" and Net.is_host():
 		_write_leaderboard(winner_id)
 
 
