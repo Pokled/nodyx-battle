@@ -50,13 +50,18 @@ func _ready() -> void:
 	_mode_btns["solo"] = _mode_button(modes, "solo",
 		"CAMPAGNE SOLO", "vagues neutres · victoire vague 20 puis sans fin")
 	_mode_btns["local"] = _mode_button(modes, "local",
-		"COURSE AUX ROIS", "FFA : chacun sa forteresse, envoie des monstres, dernier roi debout · bots en local")
-	_mode_btns["online"] = _mode_button(modes, "online",
-		"COURSE AUX ROIS : EN LIGNE", "même chose, entre joueurs (salon vocal Nodyx / relais WebSocket)")
+		"CONTRE L'IA", "course aux rois contre un adversaire bot · pour s'entraîner")
+	if GameState.in_nodyx_activity:
+		_mode_btns["voice"] = _mode_button(modes, "voice",
+			"COURSE AUX ROIS", "FFA avec les membres de ce canal vocal · dernier roi debout")
+	else:
+		_mode_btns["online"] = _mode_button(modes, "online",
+			"COURSE AUX ROIS : EN LIGNE", "entre joueurs, via un code de salon (relais WebSocket)")
 
 	var hostrow := HBoxContainer.new()
 	hostrow.alignment = BoxContainer.ALIGNMENT_CENTER
 	hostrow.add_theme_constant_override("separation", 8)
+	hostrow.visible = not GameState.in_nodyx_activity
 	col.add_child(hostrow)
 	var hl := Label.new()
 	hl.text = "relais"
@@ -89,7 +94,7 @@ func _ready() -> void:
 	for id in Specs.ORDER:
 		col.add_child(_make_card(id))
 
-	_set_mode("solo")
+	_set_mode("voice" if GameState.in_nodyx_activity else "solo")
 
 	var pad := Control.new()
 	pad.custom_minimum_size = Vector2(0, 10)
@@ -153,9 +158,8 @@ func _set_mode(mode: String) -> void:
 	for m in _mode_btns:
 		_mode_btns[m].button_pressed = (m == mode)
 	_title.text = "PRÉPARE TON DÉFI" if mode != "solo" else "PRÉPARE TA DÉFENSE"
-	var online := mode == "online"
-	if is_instance_valid(_host_edit):
-		_host_edit.get_parent().visible = online
+	if is_instance_valid(_host_edit) and not GameState.in_nodyx_activity:
+		_host_edit.get_parent().visible = mode == "online"
 	Audio.play("place_tower")
 
 
@@ -222,6 +226,10 @@ func _begin() -> void:
 	Meta.specs = _chosen.duplicate()
 	Audio.play("wave_start")
 	match _net_mode:
+		"voice":
+			Net.configure("nodyx")
+			Net.open({})
+			get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 		"local":
 			Net.configure("local")
 			Net.open({"bots": 1, "difficulty": 1.0})

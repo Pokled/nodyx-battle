@@ -144,6 +144,11 @@ func broadcast_snapshot(bytes: PackedByteArray) -> void:
 
 # --- accesseurs -----------------------------------------------------
 
+## "local" | "ws" | "nodyx"
+func backend() -> String:
+	return _backend_name
+
+
 func local_id() -> String:
 	return _backend.local_id if _backend != null else ""
 

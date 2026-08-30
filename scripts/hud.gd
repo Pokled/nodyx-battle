@@ -699,6 +699,13 @@ func _build_top_bar() -> void:
 	_king_panel = _KingPanel.new()
 	_king_panel.custom_minimum_size = Vector2(200 if duel else 214, 62)
 	_king_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_king_panel.player_name = PlayerAvatars.local_name
+	_king_panel.av = PlayerAvatars.local_tex
+	PlayerAvatars.local_ready.connect(func():
+		if is_instance_valid(_king_panel):
+			_king_panel.player_name = PlayerAvatars.local_name
+			_king_panel.av = PlayerAvatars.local_tex
+			_king_panel.queue_redraw())
 	row.add_child(_king_panel)
 	if match_on:
 		_versus_rail = HBoxContainer.new()
@@ -803,9 +810,11 @@ class _IconBtn extends Button:
 			HudIcon.paint(self, "spark", size * 0.5, col)
 
 
-## --- panneau du ROI : medaillon couronne + barre de PV rouge ---
+## --- panneau du ROI : medaillon (avatar Nodyx / couronne / crane) + PV ---
 class _KingPanel extends Control:
 	var is_ai := false
+	var av: Texture2D = null       ## avatar Nodyx du joueur local
+	var player_name := ""          ## pseudo Nodyx du joueur local
 	var _hp := 1.0
 	var _hp_shown := 1.0
 	var _cur := 100
@@ -832,15 +841,18 @@ class _KingPanel extends Control:
 		draw_rect(Rect2(0, 0, w, h), edge, false, 2.0)
 		draw_line(Vector2(2, 1.5), Vector2(w - 2, 1.5), Palette.BEVEL_HI, 1.0)
 		draw_line(Vector2(2, h - 1.5), Vector2(w - 2, h - 1.5), Palette.BEVEL_LO, 1.5)
-		# medaillon : couronne (toi) / crane (IA)
+		# medaillon : avatar Nodyx (toi) / couronne (toi, sans avatar) / crane (IA)
 		var mc := Vector2(30, h * 0.5)
 		draw_circle(mc, 21, Color(0.13, 0.11, 0.09))
+		if av != null and not is_ai:
+			draw_texture_rect(av, Rect2(mc - Vector2(19, 19), Vector2(38, 38)), false)
+		else:
+			HudIcon.paint(self, "skull" if is_ai else "crown", mc + Vector2(0, 1), Palette.ACCENT_RED_LIT if is_ai else Palette.TEXT_TITLE)
 		draw_arc(mc, 21, 0, TAU, 32, Palette.BORDER_BRONZE, 2.4)
 		draw_arc(mc, 17, 0, TAU, 28, Color(edge.r, edge.g, edge.b, 0.5), 1.4)
-		HudIcon.paint(self, "skull" if is_ai else "crown", mc + Vector2(0, 1), Palette.ACCENT_RED_LIT if is_ai else Palette.TEXT_TITLE)
 		var f := ThemeDB.fallback_font
-		var nm := "ROI ADVERSE" if is_ai else "LE ROI"
-		draw_string(f, Vector2(58, 20), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Palette.ACCENT_RED_LIT if is_ai else Palette.TEXT_TITLE)
+		var nm := "ROI ADVERSE" if is_ai else (player_name if player_name != "" else "LE ROI")
+		draw_string(f, Vector2(58, 20), nm, HORIZONTAL_ALIGNMENT_LEFT, size.x - 66, 12, Palette.ACCENT_RED_LIT if is_ai else Palette.TEXT_TITLE)
 		var br := Rect2(58, 27, w - 68, 12)
 		draw_rect(br, Palette.TRACK_DARK)
 		draw_rect(br, Color(0, 0, 0, 0.55), false, 1.0)

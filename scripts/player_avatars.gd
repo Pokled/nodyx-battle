@@ -7,15 +7,47 @@ extends Node
 ## debut de partie, en member_update).
 
 signal changed(id: String)
+signal local_ready()   ## le profil Nodyx du joueur local est disponible
 
 var _tex: Dictionary = {}   ## id -> ImageTexture
 var _seen: Dictionary = {}  ## id -> hash du base64 deja decode (evite de refaire)
+
+## Profil Nodyx du joueur local, disponible meme hors partie (solo, contre l'IA).
+var local_id := ""
+var local_name := ""
+var local_tex: ImageTexture = null
 
 
 func _ready() -> void:
 	Net.lobby_changed.connect(_ingest)
 	Net.match_started.connect(func(_s, _r): _ingest(Net.roster))
 	_ingest(Net.players)
+	if OS.has_feature("web"):
+		var w = JavaScriptBridge.get_interface("window")
+		if w != null and w.NodyxBattle:
+			_poll_local(0)
+
+
+## L'hote resout l'avatar apres coup : on rescrute meJson() quelques secondes.
+func _poll_local(tries: int) -> void:
+	var raw := String(JavaScriptBridge.eval("window.NodyxBattle && window.NodyxBattle.meJson ? window.NodyxBattle.meJson() : ''", true))
+	var learned := false
+	if raw != "":
+		var v = JSON.parse_string(raw)
+		if v is Dictionary:
+			if local_id == "" and String(v.get("id", "")) != "":
+				local_id = String(v.get("id", "")); learned = true
+			if local_name == "" and String(v.get("name", "")) != "":
+				local_name = String(v.get("name", "")); learned = true
+			var b64 := String(v.get("avatar_png", ""))
+			if b64 != "" and local_tex == null:
+				local_tex = _decode(b64)
+				learned = learned or local_tex != null
+	if learned:
+		local_ready.emit()
+	if local_tex == null and tries < 20:
+		await get_tree().create_timer(0.4).timeout
+		_poll_local(tries + 1)
 
 
 func _ingest(players: Array) -> void:

@@ -5,6 +5,7 @@ extends Control
 var _list: VBoxContainer
 var _ready_btn: Button
 var _start_btn: Button
+var _ai_btn: Button
 var _hint: Label
 var _local_ready := false
 
@@ -77,6 +78,16 @@ func _ready() -> void:
 	_start_btn.pressed.connect(func(): Net.start_match({}))
 	row.add_child(_start_btn)
 
+	# Personne d'autre dans le canal vocal : bascule en partie contre l'IA.
+	_ai_btn = Button.new()
+	_ai_btn.text = "JOUER CONTRE L'IA"
+	HudKit.btn_neutral(_ai_btn)
+	_ai_btn.pressed.connect(func():
+		Net.leave()
+		Net.configure("local")
+		Net.open({"bots": 1, "difficulty": 1.0}))
+	row.add_child(_ai_btn)
+
 	Net.lobby_changed.connect(func(_p): _refresh())
 	Net.match_started.connect(_on_match_started)
 	Net.speaking_changed.connect(func(_id, _on): _refresh())
@@ -131,6 +142,12 @@ func _refresh() -> void:
 	# local en solo) voit le bouton de lancement.
 	_start_btn.visible = Net.is_host()
 	_start_btn.disabled = n < 2
+	# "Contre l'IA" : seulement dans le canal vocal, quand on est seul.
+	var alone_in_voice := Net.backend() == "nodyx" and n < 2
+	if is_instance_valid(_ai_btn):
+		_ai_btn.visible = alone_in_voice
+	if is_instance_valid(_hint) and alone_in_voice:
+		_hint.text = "Personne d'autre pour l'instant. Attends un joueur, ou lance une partie contre l'IA."
 
 
 func _on_match_started(_seed: int, _roster: Array) -> void:

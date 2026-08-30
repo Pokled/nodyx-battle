@@ -15,6 +15,10 @@ enum Mode { SOLO, DUEL }
 
 var mode := Mode.SOLO   ## fixe par l'ecran de setup ; NON reinitialise par reset()
 
+## Le jeu tourne comme activite dans un canal vocal Nodyx (vs standalone / URL).
+## Fixe par title.gd, NON reinitialise. Change l'ecran de setup et le lobby.
+var in_nodyx_activity := false
+
 const START_MINERAI := 175
 const START_NOURRITURE := 60
 const START_KING_HP := 100

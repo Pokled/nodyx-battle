@@ -160,10 +160,18 @@
     __ready: false,
 
     me: function () {
-      return BOOT && BOOT.user
-        ? { id: selfId(), name: String(BOOT.user.name || ''), avatar: String(BOOT.user.avatar || '') }
-        : { id: '', name: '', avatar: '' }
+      if (!BOOT || !BOOT.user) return { id: '', name: '', avatar: '', avatar_png: '' }
+      var mine = roster.get(selfId())
+      return {
+        id: selfId(),
+        name: String(BOOT.user.name || (mine ? mine.name : '')),
+        avatar: String(BOOT.user.avatar || ''),
+        avatar_png: mine ? (mine.avatar_png || '') : ''
+      }
     },
+    // JSON de me(), pour Godot qui lit `window.NodyxBattle.meJson()` via
+    // JavaScriptBridge.eval (utile hors partie : solo, contre l'IA).
+    meJson: function () { return JSON.stringify(window.NodyxBattle.me()) },
     isHost: function () { return isHostNow() },
 
     onLobby:      function (fn) { cb.lobby = fn; if (ready) fireLobby() },

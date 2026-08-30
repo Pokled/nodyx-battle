@@ -128,6 +128,8 @@ console.log('detection du host (siege 0)')
 assert.equal(alice.api().isHost(), true);  ok('Alice (siege 0) est host')
 assert.equal(bob.api().isHost(), false);   ok('Bob (siege 1) ne l\'est pas')
 assert.equal(alice.api().me().id, 'u-alice'); ok('me() renvoie la bonne identite')
+assert.equal(alice.api().me().avatar_png, 'QUxJQ0U='); ok('me().avatar_png : profil Nodyx dispo hors partie')
+assert.equal(JSON.parse(alice.api().meJson()).name, 'Alice'); ok('meJson() lisible par Godot (solo / contre l\'IA)')
 
 console.log('lobby_ready se propage')
 bob.api().ready(true)

@@ -132,11 +132,10 @@ func _enter_nodyx_activity() -> bool:
 		waited += 0.1
 	if not bool(JavaScriptBridge.eval("!!(window.NodyxBattle && window.NodyxBattle.__ready)", true)):
 		return false
-	GameState.mode = GameState.Mode.DUEL
-	Meta.reset()
-	Net.configure("nodyx")
-	Net.open({})
-	get_tree().change_scene_to_file.call_deferred("res://scenes/lobby.tscn")
+	# On va a l'ecran de setup : le joueur choisit son mode (solo, contre l'IA,
+	# ou course aux rois avec les membres du canal vocal). setup.gd s'adapte.
+	GameState.in_nodyx_activity = true
+	get_tree().change_scene_to_file.call_deferred("res://scenes/setup.tscn")
 	return true
 
 
