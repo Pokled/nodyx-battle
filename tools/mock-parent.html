@@ -59,10 +59,21 @@
 <pre id="log"></pre>
 
 <script>
+// --- Un faux avatar : un disque de couleur en PNG base64 (ce que ActivitySurface
+//     produit a partir de l'avatar Nodyx reel, reduit en 64x64) ---
+function fakeAvatar(color) {
+  const c = document.createElement('canvas'); c.width = c.height = 64
+  const x = c.getContext('2d')
+  x.fillStyle = color; x.beginPath(); x.arc(32, 32, 30, 0, 7); x.fill()
+  x.fillStyle = '#0008'; x.beginPath(); x.arc(32, 26, 11, 0, 7); x.fill()
+  x.beginPath(); x.ellipse(32, 58, 20, 16, 0, Math.PI, 0); x.fill()
+  return c.toDataURL('image/png').split(',')[1]
+}
+
 // --- Le roster simule (ce que l'hote Nodyx tirerait de voice:channel_update) ---
 const MEMBERS = [
-  { id: 'u-alice', name: 'Alice', avatar_url: '', seatIndex: 0, speaking: false },
-  { id: 'u-bob',   name: 'Bob',   avatar_url: '', seatIndex: 1, speaking: false },
+  { id: 'u-alice', name: 'Alice', avatar_url: 'mock://a', avatar_png: fakeAvatar('#6bade5'), seatIndex: 0, speaking: false },
+  { id: 'u-bob',   name: 'Bob',   avatar_url: 'mock://b', avatar_png: fakeAvatar('#d9665a'), seatIndex: 1, speaking: false },
 ]
 
 const PANES = [

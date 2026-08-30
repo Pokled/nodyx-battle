@@ -17,8 +17,8 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const SHIM = readFileSync(join(HERE, '../widget/nodyx-battle/nodyx-activity.js'), 'utf8')
 
 const MEMBERS = [
-  { id: 'u-alice', name: 'Alice', avatar_url: '', seatIndex: 0, speaking: false },
-  { id: 'u-bob',   name: 'Bob',   avatar_url: '', seatIndex: 1, speaking: false },
+  { id: 'u-alice', name: 'Alice', avatar_url: 'https://x/a.png', avatar_png: 'QUxJQ0U=', seatIndex: 0, speaking: true },
+  { id: 'u-bob',   name: 'Bob',   avatar_url: 'https://x/b.png', avatar_png: '',         seatIndex: 1, speaking: false },
 ]
 
 let PASS = 0
@@ -101,6 +101,7 @@ for (const [k, p] of [['alice', alice], ['bob', bob]]) {
   p.api().onMatchStart((seed, json) => { seen[k].match = { seed, roster: JSON.parse(json) } })
   p.api().onMessage((from, ch, json) => { (seen[k].cmds ||= []).push({ from, ch, body: JSON.parse(json) }) })
   p.api().onSnapshot((from, b64) => { (seen[k].snaps ||= []).push({ from, b64 }) })
+  p.api().onSpeaking((id, on) => { (seen[k].speak ||= {})[id] = on })
 }
 
 console.log('handshake + roster')
@@ -111,6 +112,17 @@ assert.equal(seen.alice.lobby.length, 2); ok('roster a 2 joueurs')
 assert.deepEqual(seen.alice.lobby.map(p => p.name), ['Alice', 'Bob']); ok('noms dans l\'ordre des sieges')
 assert.notEqual(seen.alice.lobby[0].color, seen.alice.lobby[1].color); ok('couleurs distinctes par siege')
 assert.equal(seen.alice.lobby[0].color, seen.bob.lobby[0].color); ok('memes couleurs sur les deux clients')
+
+console.log('avatars + micro dans le roster')
+assert.equal(seen.alice.lobby[0].avatar_png, 'QUxJQ0U='); ok('avatar_png (base64) porte dans le roster')
+assert.equal(seen.alice.speak['u-alice'], true); ok('micro actif d\'Alice signale au boot (onSpeaking)')
+// un avatar resolu plus tard arrive en member_update, sans ecraser "ready"
+bob.api().ready(true); await tick()
+alice.toGuest({ event: 'member_update', member: { id: 'u-bob', name: 'Bob', seatIndex: 1, avatar_png: 'Qk9C' } })
+await tick()
+const bobRow = seen.alice.lobby.find(p => p.id === 'u-bob')
+assert.equal(bobRow.avatar_png, 'Qk9C'); ok('member_update pose l\'avatar tardif')
+assert.equal(bobRow.ready, true);        ok('member_update n\'ecrase pas l\'etat pret')
 
 console.log('detection du host (siege 0)')
 assert.equal(alice.api().isHost(), true);  ok('Alice (siege 0) est host')

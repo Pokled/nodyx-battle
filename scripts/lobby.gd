@@ -79,6 +79,8 @@ func _ready() -> void:
 
 	Net.lobby_changed.connect(func(_p): _refresh())
 	Net.match_started.connect(_on_match_started)
+	Net.speaking_changed.connect(func(_id, _on): _refresh())
+	PlayerAvatars.changed.connect(func(_id): _refresh())
 	_refresh()
 
 
@@ -98,16 +100,21 @@ func _refresh() -> void:
 	else:
 		_hint.text = "%d joueur%s dans le salon" % [n, "s" if n > 1 else ""]
 	for p in Net.players:
+		var pid := String(p.get("id", ""))
+		var col: Color = p.get("color", Color.WHITE)
 		var h := PanelContainer.new()
-		h.add_theme_stylebox_override("panel", HudKit.sb_well(p.get("color", Color.WHITE), false))
+		h.add_theme_stylebox_override("panel", HudKit.sb_well(col, false))
 		var hb := HBoxContainer.new()
 		hb.add_theme_constant_override("separation", 10)
 		h.add_child(hb)
-		var dot := ColorRect.new()
-		dot.custom_minimum_size = Vector2(14, 14)
-		dot.color = p.get("color", Color.WHITE)
-		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		hb.add_child(dot)
+		# avatar Nodyx (rond) si dispo, sinon pastille de couleur
+		var av := _AvatarBadge.new()
+		av.pid = pid
+		av.tint = col
+		av.speaking = Net.speaking.get(pid, false)
+		av.custom_minimum_size = Vector2(34, 34)
+		av.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		hb.add_child(av)
 		var nm := Label.new()
 		nm.text = String(p.get("name", "?")) + ("  (toi)" if p.get("is_local", false) else ("  · bot" if p.get("is_bot", false) else ""))
 		nm.add_theme_font_size_override("font_size", 15)
@@ -128,3 +135,33 @@ func _refresh() -> void:
 
 func _on_match_started(_seed: int, _roster: Array) -> void:
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+## Pastille joueur du lobby : avatar Nodyx rond si dispo, sinon disque de couleur,
+## anneau vert qui pulse quand le micro est actif.
+class _AvatarBadge extends Control:
+	var pid := ""
+	var tint := Color.WHITE
+	var speaking := false
+	var _t := 0.0
+
+	func _ready() -> void:
+		set_process(speaking)
+
+	func _process(delta: float) -> void:
+		_t += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r := minf(size.x, size.y) * 0.5 - 2.0
+		if speaking:
+			set_process(true)
+			var p := 0.5 + 0.5 * sin(_t * 9.0)
+			draw_circle(c, r + 2.0 + p * 2.5, Color(0.42, 0.86, 0.53, 0.3 + 0.4 * p))
+		var tex := PlayerAvatars.tex(pid)
+		if tex != null:
+			draw_texture_rect(tex, Rect2(c - Vector2(r, r), Vector2(r * 2.0, r * 2.0)), false)
+		else:
+			draw_circle(c, r, tint.darkened(0.3))
+		draw_arc(c, r, 0.0, TAU, 24, tint, 2.0, true)

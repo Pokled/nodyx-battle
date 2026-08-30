@@ -170,7 +170,8 @@ func _setup_match() -> void:
 
 	MatchDirector.player_digest.connect(func(id: String, d: Dictionary):
 		if id == _spectating and is_instance_valid(_ghost_board):
-			_ghost_board.apply_digest(d))
+			_ghost_board.apply_digest(d)
+			_update_spectate_bar(id))
 	MatchDirector.match_over.connect(func(winner: String):
 		_close_spectate()
 		if winner == MatchDirector.local_id():
@@ -189,9 +190,28 @@ func _toggle_spectate(id: String) -> void:
 	_spectating = id
 	_ghost_layer.visible = true
 	var ps = MatchDirector.players.get(id, null)
-	_spectate_bar.text = "SPECTATE : %s     (clic / Échap pour revenir)" % (ps.name if ps else id)
 	if ps != null and not ps.digest.is_empty():
 		_ghost_board.apply_digest(ps.digest)
+	_update_spectate_bar(id)
+
+
+func _update_spectate_bar(id: String) -> void:
+	var ps = MatchDirector.players.get(id, null)
+	if ps == null:
+		_spectate_bar.text = "SPECTATE : %s" % id
+		return
+	var d: Dictionary = ps.digest
+	var line := "SPECTATE : %s" % ps.name
+	if not d.is_empty():
+		var towers := (d.get("tw", []) as Array).size()
+		var foes := 0
+		for u in (d.get("un", []) as Array):
+			if int(u[5]) == 1:   # team 1 = ennemis (team 0 = ses combattants)
+				foes += 1
+		line += "     vague %d  ·  %d tours  ·  roi %d/%d  ·  %d ennemis" % [
+			int(d.get("w", 0)), towers, int(d.get("k", 0)), int(d.get("km", 100)), foes]
+	line += "     (clic / Échap : revenir)"
+	_spectate_bar.text = line
 
 
 func _close_spectate() -> void:

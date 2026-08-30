@@ -20,6 +20,7 @@ var _demolir_btn: Button
 var _king_panel: Control
 var _ai_king_panel: Control        ## panneau ROI adverse (DUEL vs IA)
 var _versus_rail: HBoxContainer    ## rail de joueurs (course aux rois)
+var _chips: Dictionary = {}        ## id -> _PlayerChip (course aux rois)
 var _send_target := ""             ## id de la cible d'envoi selectionnee
 var _target_row: HBoxContainer
 var _match_send := false
@@ -102,8 +103,13 @@ func _ready() -> void:
 	# --- COURSE AUX ROIS : rail de joueurs + envois cibles ---
 	if MatchDirector.active():
 		MatchDirector.roster_changed.connect(_on_match_roster)
+		MatchDirector.player_digest.connect(func(_id, _d): _on_match_roster())
 		MatchDirector.incoming_changed.connect(func(): if is_instance_valid(_troop_list): _rebuild_troops())
 		MatchDirector.phase_changed.connect(_on_match_phase)
+		Net.speaking_changed.connect(func(id, on):
+			if _chips.has(id) and is_instance_valid(_chips[id]): _chips[id].speaking = on)
+		PlayerAvatars.changed.connect(func(id):
+			if _chips.has(id) and is_instance_valid(_chips[id]): _chips[id].av = PlayerAvatars.tex(id))
 		GameState.nourriture_changed.connect(func(_v):
 			if is_instance_valid(_troop_list): _rebuild_troops())
 		_on_match_roster()
@@ -234,8 +240,6 @@ func _on_versus_changed() -> void:
 func _on_match_roster() -> void:
 	if not is_instance_valid(_versus_rail):
 		return
-	for c in _versus_rail.get_children():
-		c.queue_free()
 	var alive: Array = MatchDirector.living_ids()
 	if _send_target == "" or not (_send_target in alive) or _send_target == MatchDirector.local_id():
 		_send_target = ""
@@ -243,34 +247,97 @@ func _on_match_roster() -> void:
 			if id != MatchDirector.local_id():
 				_send_target = id
 				break
+
+	var wanted := {}
 	for ps in MatchDirector.opponents():
-		var chip := Button.new()
-		chip.focus_mode = Control.FOCUS_NONE
-		chip.custom_minimum_size = Vector2(126, 58)
-		chip.tooltip_text = "Cliquer : espionner le plateau de %s" % ps.name
-		var frac := clampf(float(ps.king_hp) / float(maxi(1, ps.king_max)), 0.0, 1.0)
-		chip.text = "%s\n%s  %d/%d" % [ps.name, ("☠" if not ps.alive else "♛"), ps.king_hp, ps.king_max]
-		chip.add_theme_font_size_override("font_size", 11)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Palette.PANEL_RAISED
-		sb.set_corner_radius_all(4)
-		sb.set_border_width_all(2)
-		sb.border_color = ps.color if ps.alive else Palette.TEXT_MUTE
-		sb.content_margin_left = 8
-		chip.add_theme_stylebox_override("normal", sb)
-		chip.add_theme_stylebox_override("hover", sb)
-		chip.add_theme_stylebox_override("pressed", sb)
-		chip.add_theme_color_override("font_color", Palette.TEXT if ps.alive else Palette.TEXT_MUTE)
-		var pid: String = ps.id
-		chip.pressed.connect(func(): spectate_pressed.emit(pid))
-		_versus_rail.add_child(chip)
-		var bar := _ChipBar.new()
-		bar.frac = frac
-		bar.tint = ps.color
-		bar.position = Vector2(4, 52)
-		bar.custom_minimum_size = Vector2(118, 4)
-		chip.add_child(bar)
+		wanted[ps.id] = true
+		var chip: _PlayerChip = _chips.get(ps.id, null)
+		if not is_instance_valid(chip):
+			chip = _PlayerChip.new()
+			var pid: String = ps.id
+			chip.pressed.connect(func(): spectate_pressed.emit(pid))
+			_versus_rail.add_child(chip)
+			_chips[ps.id] = chip
+		chip.set_data(ps.id, ps.name, ps.color, PlayerAvatars.tex(ps.id),
+			ps.king_hp, ps.king_max, ps.alive)
+		chip.speaking = Net.speaking.get(ps.id, false)
+	# retire les chips des joueurs qui ont quitte
+	for id in _chips.keys():
+		if not wanted.has(id):
+			if is_instance_valid(_chips[id]): _chips[id].queue_free()
+			_chips.erase(id)
 	_rebuild_troops()
+
+
+## Carte d'un adversaire dans le rail course aux rois : avatar Nodyx (rond),
+## anneau qui pulse quand le micro est actif, pseudo, barre de PV du roi.
+class _PlayerChip extends Button:
+	var pid := ""
+	var pname := ""
+	var tint := Color.WHITE
+	var av: Texture2D = null
+	var hp := 100
+	var hp_max := 100
+	var alive := true
+	var speaking := false : set = _set_speaking
+	var _pulse := 0.0
+
+	func _set_speaking(v: bool) -> void:
+		if v == speaking: return
+		speaking = v
+		set_process(v)
+		if not v: _pulse = 0.0
+		queue_redraw()
+
+	func _ready() -> void:
+		custom_minimum_size = Vector2(150, 60)
+		focus_mode = Control.FOCUS_NONE
+		flat = true
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+
+	func set_data(id: String, nm: String, col: Color, tex: Texture2D, k: int, km: int, al: bool) -> void:
+		pid = id; pname = nm; tint = col; av = tex; hp = k; hp_max = km; alive = al
+		tooltip_text = "Espionner le plateau de %s" % nm
+		queue_redraw()
+
+	func _process(delta: float) -> void:
+		_pulse += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var s := size
+		var bcol := tint if alive else Palette.TEXT_MUTE
+		draw_rect(Rect2(Vector2.ZERO, s), Palette.PANEL_RAISED)
+		draw_rect(Rect2(Vector2.ONE, s - Vector2(2, 2)), bcol, false, 2.0)
+
+		var r := 21.0
+		var c := Vector2(8 + r, s.y * 0.5)
+		if speaking:
+			var p := 0.5 + 0.5 * sin(_pulse * 9.0)
+			draw_circle(c, r + 3.0 + p * 3.0, Color(0.42, 0.86, 0.53, 0.25 + 0.4 * p))
+		if av != null:
+			draw_texture_rect(av, Rect2(c - Vector2(r, r), Vector2(r * 2.0, r * 2.0)), false,
+				Color(1, 1, 1, 1.0 if alive else 0.45))
+		else:
+			draw_circle(c, r, tint.darkened(0.35))
+			draw_string(ThemeDB.fallback_font, c + Vector2(-6.5, 6.0),
+				pname.substr(0, 1).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 1, 1, 0.92))
+		draw_arc(c, r, 0.0, TAU, 28, bcol, 2.0, true)
+		if not alive:
+			draw_string(ThemeDB.fallback_font, c + Vector2(-8, 7), "☠",
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Palette.HP_LOW)
+
+		var tx := c.x + r + 8.0
+		var tw := s.x - tx - 8.0
+		var f := ThemeDB.fallback_font
+		draw_string(f, Vector2(tx, 22), pname, HORIZONTAL_ALIGNMENT_LEFT, tw, 13,
+			Palette.TEXT if alive else Palette.TEXT_MUTE)
+		draw_string(f, Vector2(tx, 38), "%s  %d/%d" % [("♛" if alive else "éliminé"), hp, hp_max],
+			HORIZONTAL_ALIGNMENT_LEFT, tw, 10, Palette.TEXT_MUTE)
+		var frac := clampf(float(hp) / float(maxi(1, hp_max)), 0.0, 1.0)
+		draw_rect(Rect2(Vector2(tx, 46), Vector2(tw, 5)), Palette.HP_BG)
+		draw_rect(Rect2(Vector2(tx, 46), Vector2(tw * frac, 5)),
+			Palette.HP_GOOD if frac > 0.35 else Palette.HP_LOW)
 
 
 func _on_match_phase(ph: int) -> void:
@@ -279,14 +346,6 @@ func _on_match_phase(ph: int) -> void:
 		_start_btn.disabled = not build
 		_start_btn.text = "PRÊT" if build else "MANCHE EN COURS…"
 	_refresh_ctx()
-
-
-class _ChipBar extends Control:
-	var frac := 1.0
-	var tint := Color.WHITE
-	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, 4)), Palette.HP_BG)
-		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x * frac, 4)), Palette.HP_GOOD if frac > 0.35 else Palette.HP_LOW)
 
 
 ## Carte d'un joueur : pastille + nom + GROSSE barre de PV du roi (couleur qui
