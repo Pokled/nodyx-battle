@@ -1,0 +1,19 @@
+# Godot 4+
+.godot/
+/android/
+
+# Artefacts de build (régénérés par tools/)
+/widget/nodyx-battle/game/
+/dist/
+
+# QA / scratch (dev local, non versionné)
+_shot.png
+_shot.png.import
+scratch_*.png
+scratch_*.png.import
+
+# Vieux backups
+/backup/
+
+# Claude Code (config/état locaux à la machine)
+.claude/

@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://cx25t63bsdiwu"]
+
+[ext_resource type="Script" path="res://scripts/farm_view.gd" id="1"]
+
+[node name="FarmView" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1")

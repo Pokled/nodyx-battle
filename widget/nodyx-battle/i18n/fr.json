@@ -1,0 +1,22 @@
+{
+  "label": "Course aux Rois",
+  "description": "Tower-defense en chacun-pour-soi : tiens ta forteresse, envoie des monstres sur qui tu veux, dernier roi debout. Crée un salon et partage le code, ou rejoins celui d'un ami.",
+  "field.game_url": "URL du jeu",
+  "field.game_url.hint": "Où le jeu est servi, par exemple https://xxxx.exemple.com",
+  "field.relay": "Relais",
+  "field.relay.hint": "host:port ou domaine du relais WebSocket, par exemple yyyy.exemple.com",
+  "heading": "Course aux Rois",
+  "blurb": "Chacun défend sa forteresse. Envoie des monstres, cours briser le roi adverse.",
+  "create": "Créer un salon",
+  "join": "Rejoindre",
+  "code_placeholder": "code",
+  "not_configured": "Pas encore configuré : renseigne l'URL du jeu et le relais dans le builder.",
+  "as": "Tu joues en tant que {{name}}",
+  "room_is": "Salon",
+  "step_open": "Ouvre ce lien dans un nouvel onglet pour jouer — donne le code du salon à ton adversaire.",
+  "copy": "Copier le lien",
+  "copied": "Copié",
+  "copy_manual": "Fais Ctrl+C",
+  "open_here": "Ouvrir le jeu ↗",
+  "back": "Retour"
+}

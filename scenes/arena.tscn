@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://cubbuusm6nv37"]
+
+[ext_resource type="Script" uid="uid://dnewpd2r6mw37" path="res://scripts/arena.gd" id="1"]
+
+[node name="Arena" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1")

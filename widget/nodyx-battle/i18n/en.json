@@ -1,0 +1,22 @@
+{
+  "label": "King's Race",
+  "description": "Tower-defense free-for-all: hold your own fortress, send monsters at whoever you want, last king standing wins. Create a room and share the code, or join a friend's.",
+  "field.game_url": "Game URL",
+  "field.game_url.hint": "Where the game is served, for example https://xxxx.example.com",
+  "field.relay": "Relay host",
+  "field.relay.hint": "host:port or domain of the WebSocket relay, for example yyyy.example.com",
+  "heading": "King's Race",
+  "blurb": "Each player defends their fortress. Send monsters, race to break the enemy king.",
+  "create": "Create a room",
+  "join": "Join",
+  "code_placeholder": "code",
+  "not_configured": "Not configured yet: set the Game URL and Relay host in the builder.",
+  "as": "Playing as {{name}}",
+  "room_is": "Room",
+  "step_open": "Open this link in a new tab to play — send the room code to your opponent.",
+  "copy": "Copy link",
+  "copied": "Copied",
+  "copy_manual": "Press Ctrl+C",
+  "open_here": "Open the game ↗",
+  "back": "Back"
+}

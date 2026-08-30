@@ -1,0 +1,41 @@
+{
+  "api": 1,
+  "id": "kings-race",
+  "version": "0.2.0",
+  "license": "MIT",
+  "author": { "name": "jaronoah" },
+  "default_locale": "en",
+  "label": "@label",
+  "description": "@description",
+  "icon": "icon.svg",
+  "family": "gaming",
+  "surfaces": [
+    {
+      "type": "widget",
+      "id": "launcher",
+      "entry": "ui/widget.js",
+      "label": "@label",
+      "description": "@description",
+      "default_height": 240,
+      "schema": [
+        {
+          "key": "game_url",
+          "type": "url",
+          "label": "@field.game_url",
+          "hint": "@field.game_url.hint",
+          "required": true
+        },
+        {
+          "key": "relay_host",
+          "type": "text",
+          "label": "@field.relay",
+          "hint": "@field.relay.hint",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "permissions": {
+    "identity": ["username"]
+  }
+}
