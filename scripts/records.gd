@@ -22,7 +22,8 @@ var _recorded := false             ## une seule ecriture par partie
 func _ready() -> void:
 	if not _bridge():
 		return
-	Net.match_started.connect(func(_s, _r): _recorded = false)
+	# Nouvelle partie : GameState.reset() (main.gd) emet wave_changed(0).
+	GameState.wave_changed.connect(func(w): if w == 0: _recorded = false)
 	MatchDirector.match_over.connect(_on_match_over)
 	GameState.game_over.connect(_on_solo_over)
 	_js.call("loadStats")
