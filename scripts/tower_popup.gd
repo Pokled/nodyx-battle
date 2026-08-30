@@ -108,7 +108,7 @@ func _refresh() -> void:
 
 	if subject is Tower:
 		var t: Tower = subject
-		_title.text = "%s  —  Niveau %d" % [Catalog.label(t.type_id), t.level]
+		_title.text = "%s : Niveau %d" % [Catalog.label(t.type_id), t.level]
 		if t.type_id == "givre":
 			_stats.text = "Nova de zone : %d dgts / cible   Rayon %d   Toutes les %.1fs   Ralentit -%d%%" % [
 				roundi(t.damage), roundi(t.attack_range), t.attack_cooldown,

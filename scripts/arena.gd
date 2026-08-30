@@ -64,7 +64,7 @@ var _static_dirty := true
 var _trail_pts: PackedVector2Array = PackedVector2Array()
 
 # =========================================================================
-#  DIRECTION ARTISTIQUE  —  "SALLE DU DONJON" (reference : Tails of Iron)
+#  DIRECTION ARTISTIQUE : "SALLE DU DONJON" (reference : Tails of Iron)
 #  Pierre taillee peinte, contours a l'encre, palette DESATUREE gris-vert /
 #  brun / ocre, accent CRAMOISI (bannieres, heraldique).  Peu d'effets : une
 #  cle chaude venue d'en haut, des torches MURALES contenues, forte vignette.
@@ -431,7 +431,7 @@ func mark_dirty() -> void:
 
 
 # =========================================================================
-#  RENDU  —  "SALLE DU DONJON"  (reference : Tails of Iron)
+#  RENDU : "SALLE DU DONJON"  (reference : Tails of Iron)
 #  Pierre taillee peinte + contours encre, palette desaturee, accent cramoisi.
 #  Peu d'effets, torches MURALES, forte vignette.  Le decor sert le jeu.
 # =========================================================================

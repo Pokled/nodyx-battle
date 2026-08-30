@@ -52,7 +52,7 @@ func _ready() -> void:
 	_mode_btns["local"] = _mode_button(modes, "local",
 		"COURSE AUX ROIS", "FFA : chacun sa forteresse, envoie des monstres, dernier roi debout · bots en local")
 	_mode_btns["online"] = _mode_button(modes, "online",
-		"COURSE AUX ROIS — EN LIGNE", "même chose, entre joueurs (salon vocal Nodyx / relais WebSocket)")
+		"COURSE AUX ROIS : EN LIGNE", "même chose, entre joueurs (salon vocal Nodyx / relais WebSocket)")
 
 	var hostrow := HBoxContainer.new()
 	hostrow.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -167,7 +167,7 @@ func _make_card(id: String) -> Button:
 	b.toggle_mode = true
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.clip_text = true
-	b.text = "  %s   —   %s" % [info["label"], info["desc"]]
+	b.text = "  %s   ·   %s" % [info["label"], info["desc"]]
 	b.add_theme_font_size_override("font_size", 13)
 	for st in ["normal", "hover", "pressed", "focus"]:
 		var s := StyleBoxFlat.new()

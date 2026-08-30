@@ -189,7 +189,7 @@ func _toggle_spectate(id: String) -> void:
 	_spectating = id
 	_ghost_layer.visible = true
 	var ps = MatchDirector.players.get(id, null)
-	_spectate_bar.text = "SPECTATE  —  %s     (clic / Échap pour revenir)" % (ps.name if ps else id)
+	_spectate_bar.text = "SPECTATE : %s     (clic / Échap pour revenir)" % (ps.name if ps else id)
 	if ps != null and not ps.digest.is_empty():
 		_ghost_board.apply_digest(ps.digest)
 

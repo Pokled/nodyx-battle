@@ -15,5 +15,7 @@ scratch_*.png.import
 # Vieux backups
 /backup/
 
-# Claude Code (config/état locaux à la machine)
+# Config locale d'outils et d'éditeurs
 .claude/
+.vscode/
+.idea/

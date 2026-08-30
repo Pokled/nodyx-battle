@@ -1,89 +1,92 @@
-# NodyxBattle — Multijoueur (jalon 1)
+# Multijoueur : le protocole
 
-**Course aux rois** FFA 2-8. Chacun sa forteresse (l'arène verticale), vague neutre
-partagée chaque manche + monstres envoyés par les autres joueurs, dernier roi debout.
-Le jeu vit dans un **salon vocal Nodyx** : les membres du salon = le roster ; la voix
-reste native Nodyx ; on ne transporte que l'état de jeu.
+**Course aux rois**, FFA de 2 à 8. Chacun sa forteresse (l'arène verticale), une
+vague neutre partagée chaque manche plus les monstres que les autres joueurs
+t'envoient, dernier roi debout.
 
 ## Modèle de synchro : snapshot autoritaire par joueur
 
-Chaque client simule **son** plateau avec le code de jeu normal, et diffuse un
-`BoardDigest` compact ~6 Hz. Les autres l'affichent en `GhostBoard` interpolé
-(spectate). Pas de lockstep déterministe (l'audit l'a chiffré à un effort L — refonte
-pas-fixe + RNG seedé). Contrepartie : client autoritaire sur son propre board (OK
-entre joueurs d'un même salon vocal). `MatchDirector.cmd_log` garde le journal ordonné
-des commandes → base d'un validateur re-sim headless futur.
+Chaque client simule **son** plateau avec le code de jeu normal et diffuse un
+`BoardDigest` compact à environ 6 Hz. Les autres l'affichent en `GhostBoard`
+interpolé (mode spectateur). Pas de lockstep déterministe : l'audit l'a chiffré à
+un effort important (refonte pas-fixe, RNG seedé). Contrepartie assumée : chaque
+client est autoritaire sur son propre plateau, ce qui va entre joueurs d'un même
+salon vocal. `MatchDirector.cmd_log` garde le journal ordonné des commandes, base
+d'un futur validateur re-sim headless.
 
 ## Couches
 
 ```
-Net (autoload)            abstraction transport, aucun gameplay
-├── NetLocal              1 humain + K bots en process (dev/solo)   [jouable]
-├── NetWs  + lobby_server relais WebSocket headless                 [localhost OK]
-└── NetNodyx + widget/    pont JavaScriptBridge ⇄ window.NodyxBattle [écrit, inerte]
+Net (autoload)              abstraction de transport, aucun gameplay
+  NetLocal                  1 humain + K bots en process (dev / solo)
+  NetWs + lobby_server.gd   vrais pairs via un relais WebSocket headless
+  NetNodyx + nodyx-activity.js   pont vers l'hôte Nodyx (canal vocal)
 
-MatchDirector (autoload)  barrière de manche, envois ciblés, élimination, victoire
-BoardDigest               capture/sérialise un plateau
-GhostBoard                rend un digest (spectate)
+MatchDirector (autoload)    barrière de manche, envois ciblés, élimination, victoire
+BoardDigest                 capture et sérialise un plateau
+GhostBoard                  rend un digest (mode spectateur)
 ```
 
-Sélection du backend : `--net=<local|ws|nodyx>` (CLI) / `?net=` (web) ; défaut =
-`nodyx` si `window.NodyxBattle` existe, sinon `local`.
+Sélection du backend : `--net=<local|ws|nodyx>` en ligne de commande, `?net=` sur
+le web. Par défaut : `nodyx` si `window.NodyxBattle` existe, sinon `local`.
 
-## Canaux
+## Deux canaux logiques
 
 | Canal | Fiabilité | Contenu |
 |---|---|---|
-| `cmd` | fiable, ordonné | build/round/envois/king/élimination |
-| `snap` | best-effort, latest-wins | `BoardDigest.to_bytes()` |
+| `cmd` | fiable, ordonné | ready, transitions de manche, envois, PV du roi, élimination |
+| `snap` | best-effort, dernier gagne | `BoardDigest.to_bytes()` |
 
-Le bus ne renvoie PAS à l'expéditeur : `MatchDirector._broadcast_cmd` = `Net.send` +
-`_apply_cmd(local)` en local.
+Le bus ne renvoie pas à l'expéditeur : `MatchDirector._broadcast_cmd` fait
+`Net.send` puis `_apply_cmd(local)` localement.
 
 ## Messages `cmd`
 
 | `t` | émis par | charge | effet |
 |---|---|---|---|
-| `ready` | joueur/bot | `{id, on}` | marque prêt ; le host tente de lancer la manche |
-| `targets` | host | `{ids:[...]}` | liste des joueurs vivants (pour les bots) |
-| `round_begin` | host | `{n}` | nudge : les bots/pairs relancent leur phase build |
-| `round_start` | host | `{n, seed}` | tout le monde entre en COMBAT, `WaveManager.start_wave(seed)` |
-| `send` | joueur/bot | `{from, to, troops:{id:n}}` | `to` ajoute à son `incoming` (spawn au round suivant) |
-| `king` | joueur/bot | `{id, hp, max}` | met à jour le roi d'un joueur ; hp≤0 ⇒ host émet `eliminated` |
-| `wave_done` | joueur/bot | `{id, n}` | board nettoyé ; le host tente de clore la manche |
-| `round_end` | host | `{n}` | retour BUILD, `round_no+1` |
-| `eliminated` | host | `{id}` | joueur passe spectateur ; si 1 vivant ⇒ `match_over` |
+| `ready` | joueur / bot | `{id, on}` | marque prêt, le host tente de lancer la manche |
+| `targets` | host | `{ids:[...]}` | liste des joueurs vivants, pour les bots |
+| `round_begin` | host | `{n}` | signal : les bots et pairs relancent leur phase construction |
+| `round_start` | host | `{n, seed}` | tout le monde entre en combat, `WaveManager.start_wave(seed)` |
+| `send` | joueur / bot | `{from, to, troops:{id:n}}` | `to` ajoute à son `incoming`, spawn à la manche suivante |
+| `king` | joueur / bot | `{id, hp, max}` | met à jour le roi d'un joueur, hp <= 0 fait émettre `eliminated` par le host |
+| `wave_done` | joueur / bot | `{id, n}` | plateau nettoyé, le host tente de clore la manche |
+| `round_end` | host | `{n}` | retour construction, `round_no + 1` |
+| `eliminated` | host | `{id}` | le joueur passe spectateur, s'il ne reste qu'un vivant : `match_over` |
 | `match_over` | host | `{winner}` | fin de partie |
 
 ## Barrière de manche
 
 ```
-BUILD ── tous "ready" (ou deadline 60s) ──▶ round_start ──▶ COMBAT
-COMBAT ── tous "wave_done" (ou straggler 20s après le 1er) ──▶ round_end ──▶ BUILD
+CONSTRUCTION  -- tous "ready" (ou deadline 60s) -->  round_start  -->  COMBAT
+COMBAT        -- tous "wave_done" (ou 20s après le premier) -->  round_end  -->  CONSTRUCTION
 ```
 
-Le **host** (NetLocal : le client local ; NetWs : plus ancien pair ; Nodyx :
-propriétaire du salon) arbitre. Deadlines partout ; pair qui drop = auto-éliminé.
+Le **host** arbitre. Selon le backend : `NetLocal` le client local, `NetWs` le
+plus ancien pair, `NetNodyx` le membre au plus petit `seatIndex` du salon vocal.
+Deadlines partout, un pair qui se déconnecte est auto-éliminé.
 
 ## BoardDigest
 
-`{k,km,o,f,w,ph, tw:[[cx,cy,type_idx,lvl]], un:[[id,x,y,hp255,type_idx,team,flags]]}`
-`flags` bit0=champion bit1=from_send. `type_idx` = index dans `BoardDigest.TYPES`.
-J1 : `var_to_bytes`. Optim (8 joueurs) : quantif int16/uint8 + cap d'unités + 5 Hz.
+`{k, km, o, f, w, ph, tw:[[cx,cy,type_idx,lvl]], un:[[id,x,y,hp255,type_idx,team,flags]]}`
+
+`flags` bit 0 = champion, bit 1 = reçu d'un envoi. `type_idx` indexe
+`BoardDigest.TYPES`. Sérialisation v1 : `var_to_bytes`. Optim prévue pour 8
+joueurs : quantification int16 / uint8, plafond d'unités, 5 Hz.
 
 ## Tester
 
-**Solo + bot**
-```
-Godot ... --net=local     # ou: setup ▸ COURSE AUX ROIS
+```bash
+# solo + bots
+godot --path . -- --net=local        # ou : setup > COURSE AUX ROIS
+
+# deux clients via un relais local
+godot --headless --path . --script res://scripts/net/lobby_server.gd
+godot --path . -- --net=ws --host=127.0.0.1:9871
+
+# activité Nodyx, sans instance : deux iframes contre un faux hôte
+GODOT=godot bash tools/build_web.sh && python3 tools/serve_web.py 8060
+# http://localhost:8060/mock-parent.html
 ```
 
-**2 instances (localhost)**
-```
-# terminal 1
-Godot --headless --path . --script res://scripts/net/lobby_server.gd
-# terminaux 2 et 3
-Godot --path . -- --net=ws --host=127.0.0.1:9871
-```
-
-**QA visuelle** : `_shot.gd` `const MODE := "versus"`.
+QA visuelle : `_shot.gd`, `const MODE := "versus"`.

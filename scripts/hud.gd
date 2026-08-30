@@ -207,7 +207,7 @@ func _build_avatars() -> void:
 	vs.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	vs.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(vs)
-	# (les connexions DUEL Versus sont dans _ready — ce bandeau est masque pour l'instant)
+	# (les connexions DUEL Versus sont dans _ready, ce bandeau est masque pour l'instant)
 
 
 func _on_attack_resolved(king_dmg: int, _breach: float) -> void:
@@ -553,7 +553,7 @@ func _troop_row(tid: String) -> Control:
 	var name_lbl := Label.new()
 	name_lbl.text = "%s  niv %d%s" % [
 		Enemy.TYPES.get(tid, {"label": tid})["label"], lvl,
-		("   —   file: %d" % queued) if queued > 0 else ""]
+		("   ·   file: %d" % queued) if queued > 0 else ""]
 	name_lbl.add_theme_font_size_override("font_size", 12)
 	name_lbl.add_theme_color_override("font_color", col.lightened(0.25))
 	v.add_child(name_lbl)
@@ -936,9 +936,9 @@ func _build_card(id: String) -> _BuildCard:
 		if Catalog.cat(id) == "tower":
 			var sc := Catalog.tower_surcharge()
 			if Catalog.towers_full():
-				txt += "  —  LIMITE (%d tours) : ameliore ou revends." % Catalog.TOWER_CAP
+				txt += "  ·  LIMITE (%d tours) : ameliore ou revends." % Catalog.TOWER_CAP
 			elif sc > 0.0:
-				txt += "  —  %d/%d tours, prix +%d%%." % [GameState.towers_built, Catalog.TOWER_CAP, roundi(sc * 100.0)]
+				txt += "  ·  %d/%d tours, prix +%d%%." % [GameState.towers_built, Catalog.TOWER_CAP, roundi(sc * 100.0)]
 		_ctx_lbl.text = txt)
 	c.mouse_exited.connect(_refresh_ctx)
 	return c
@@ -1452,7 +1452,7 @@ func _on_wave_cleared(w: int) -> void:
 	if _match_send:
 		var ls = MatchDirector.local_state()
 		if ls != null and ls.alive:
-			banner("MANCHE %d TENUE  —  construis, puis clique PRÊT" % w, Palette.HP_GOOD, 1.4)
+			banner("MANCHE %d TENUE : construis, puis clique PRÊT" % w, Palette.HP_GOOD, 1.4)
 		return
 	banner("VAGUE %d REPOUSSEE" % w, Palette.HP_GOOD, 1.2)
 	_show_recap()
@@ -1469,7 +1469,7 @@ func _offer_boons() -> void:
 	for c in _boon_box.get_children():
 		c.queue_free()
 	var ids: Array = Meta.draw_choices(3)
-	_boon_title.text = "— RENFORT DU ROI  ·  choisis-en un —"
+	_boon_title.text = "RENFORT DU ROI  ·  choisis-en un"
 	for i in ids.size():
 		var id: String = ids[i]
 		var info: Dictionary = Meta.BOONS[id]
@@ -1517,7 +1517,7 @@ func _on_game_over(win: bool) -> void:
 		elif win:
 			sub.text = "Les %d vagues repoussees. Continue pour voir jusqu'ou tu tiens." % GameState.WIN_WAVE
 		elif GameState.endless:
-			sub.text = "Mode sans fin — tu as tenu jusqu'a la vague %d." % GameState.wave
+			sub.text = "Mode sans fin : tu as tenu jusqu'a la vague %d." % GameState.wave
 		else:
 			sub.text = "Le roi est tombe a la vague %d." % GameState.wave
 	if cont:
@@ -1547,7 +1547,7 @@ func _show_recap() -> void:
 			leaks, ", ".join(by), int(r.get("hp_lost", 0))])
 	var healed := int(round(float(r.get("healed", 0.0))))
 	if healed > 0:
-		lines.append("[color=#6fdc8f]Soins ennemis : %d PV[/color]  (les Soigneurs — vise-les ou frappe en zone)" % healed)
+		lines.append("[color=#6fdc8f]Soins ennemis : %d PV[/color]  (les Soigneurs, vise-les ou frappe en zone)" % healed)
 	_recap_lbl.text = "\n".join(lines)
 
 	_offer_boons()
@@ -1616,10 +1616,10 @@ func _refresh_ctx() -> void:
 		_wave_sec.visible = true
 	var pre := "SANS FIN · " if GameState.endless else ""
 	if not build:
-		_ctx_lbl.text = pre + "Vague %d en cours — tiens la ligne !" % GameState.wave
+		_ctx_lbl.text = pre + "Vague %d en cours, tiens la ligne !" % GameState.wave
 		return
 	if GameState.endless:
-		_ctx_lbl.text = "SANS FIN · vague %d survecue. Chaque vague est plus dure — tiens le plus longtemps." % GameState.wave
+		_ctx_lbl.text = "SANS FIN · vague %d survecue. Chaque vague est plus dure, tiens le plus longtemps." % GameState.wave
 	elif GameState.wave > 0:
 		_ctx_lbl.text = "Vague %d survecue. Renforce, ameliore, puis lance la suivante." % GameState.wave
 	else:
@@ -1658,12 +1658,12 @@ func _refresh() -> void:
 		return
 	var build := GameState.phase == GameState.Phase.BUILD
 	_wave_lbl.text = "VAGUE %d / %d" % [maxi(1, GameState.wave), GameState.WIN_WAVE]
-	_phase_lbl.text = "Construction — prepare ta defense" if build else "Combat — tiens la ligne"
+	_phase_lbl.text = "Construction : prepare ta defense" if build else "Combat : tiens la ligne"
 	_refresh_ctx()
 	_update_buttons()
 
 
-## Panneau de droite : page de grimoire — vellum, ferrures, chaines, sceau,
+## Panneau de droite : page de grimoire : vellum, ferrures, chaines, sceau,
 ## plaque de titre bordeaux, accent bleu pour l'element vif.  (ref : Tails of Iron)
 class _WarTable extends Control:
 	var _t := 0.0
@@ -1884,7 +1884,7 @@ class _WarTable extends Control:
 			if not String(rid).begins_with("spec:"):
 				acquired.append(rid)
 		if acquired.is_empty():
-			draw_string(f, Vector2(16, ry0 + 24.0), "— aucun pour l'instant —", HORIZONTAL_ALIGNMENT_LEFT, s.x - 32, 9, ink_dim)
+			draw_string(f, Vector2(16, ry0 + 24.0), "aucun pour l'instant", HORIZONTAL_ALIGNMENT_LEFT, s.x - 32, 9, ink_dim)
 		else:
 			for i in mini(acquired.size(), 8):
 				var ly := ry0 + 18.0 + i * 17.0

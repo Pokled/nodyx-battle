@@ -328,7 +328,7 @@ Lorsqu'une tour est sélectionnée :
 
 afficher une barre contextuelle avec :
 
-ARCHER — NIVEAU 1
+ARCHER : NIVEAU 1
 
 Dégâts
 Portée
@@ -498,9 +498,7 @@ Priorité :
 
 La complexité doit venir du gameplay, pas de l'interface.
 
-Et je rajouterais une phrase très importante à Claude
-
-À la fin, ajoute :
+Une phrase qui résume l'intention :
 
 « Ne traite pas mon interface comme un HUD posé au-dessus d'un jeu. Je veux que l'interface et la forteresse soient une seule et même chose. Les zones Mine, Ferme et Garnison doivent être des lieux physiques du royaume, tandis que les informations doivent émerger naturellement de ces lieux. »
 
