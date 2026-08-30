@@ -5,6 +5,8 @@ Tu farmes le minerai, tu bâtis ton labyrinthe de tours, tu recrutes des combatt
 et tu tiens la ligne contre des vagues qui montent. En multijoueur, chacun défend
 sa forteresse et envoie des monstres sur les autres : dernier roi debout gagne.
 
+![NodyxBattle : à gauche la vue FERME (mines, champs, garnison), à droite l'arène de bataille](docs/img/nodyx-battle.jpg)
+
 Moteur : **Godot 4.7.2** (GDScript, rendu GL Compatibility). Le plateau et l'interface
 sont dessinés **entièrement en code**, sans texture pour le décor. Le jeu s'exporte
 en **WebAssembly** et se joue dans le navigateur.
