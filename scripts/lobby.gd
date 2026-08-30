@@ -85,13 +85,17 @@ func _ready() -> void:
 	_ai_btn.pressed.connect(func():
 		Net.leave()
 		Net.configure("local")
-		Net.open({"bots": 1, "difficulty": 1.0}))
+		var lo := {"bots": 1, "difficulty": 1.0}
+		if PlayerAvatars.local_name != "":
+			lo["name"] = PlayerAvatars.local_name
+		Net.open(lo))
 	row.add_child(_ai_btn)
 
 	Net.lobby_changed.connect(func(_p): _refresh())
 	Net.match_started.connect(_on_match_started)
 	Net.speaking_changed.connect(func(_id, _on): _refresh())
 	PlayerAvatars.changed.connect(func(_id): _refresh())
+	PlayerAvatars.local_ready.connect(_refresh)
 	_refresh()
 
 
@@ -121,6 +125,7 @@ func _refresh() -> void:
 		# avatar Nodyx (rond) si dispo, sinon pastille de couleur
 		var av := _AvatarBadge.new()
 		av.pid = pid
+		av.is_local = p.get("is_local", false)
 		av.tint = col
 		av.speaking = Net.speaking.get(pid, false)
 		av.custom_minimum_size = Vector2(34, 34)
@@ -158,6 +163,7 @@ func _on_match_started(_seed: int, _roster: Array) -> void:
 ## anneau vert qui pulse quand le micro est actif.
 class _AvatarBadge extends Control:
 	var pid := ""
+	var is_local := false
 	var tint := Color.WHITE
 	var speaking := false
 	var _t := 0.0
@@ -176,7 +182,11 @@ class _AvatarBadge extends Control:
 			set_process(true)
 			var p := 0.5 + 0.5 * sin(_t * 9.0)
 			draw_circle(c, r + 2.0 + p * 2.5, Color(0.42, 0.86, 0.53, 0.3 + 0.4 * p))
-		var tex := PlayerAvatars.tex(pid)
+		# le joueur local : son avatar Nodyx peut venir du profil (id "you" en
+		# local) ; les autres, du roster par id.
+		var tex: Texture2D = PlayerAvatars.local_tex if is_local else null
+		if tex == null:
+			tex = PlayerAvatars.tex(pid)
 		if tex != null:
 			draw_texture_rect(tex, Rect2(c - Vector2(r, r), Vector2(r * 2.0, r * 2.0)), false)
 		else:

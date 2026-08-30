@@ -232,7 +232,10 @@ func _begin() -> void:
 			get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 		"local":
 			Net.configure("local")
-			Net.open({"bots": 1, "difficulty": 1.0})
+			var lo := {"bots": 1, "difficulty": 1.0}
+			if PlayerAvatars.local_name != "":
+				lo["name"] = PlayerAvatars.local_name
+			Net.open(lo)
 			get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 		"online":
 			var code := _code_edit.text.strip_edges().to_upper()
