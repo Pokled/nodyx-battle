@@ -32,7 +32,7 @@ func _ready() -> void:
 	add_child(col)
 
 	var title := Label.new()
-	title.text = "SALON  —  COURSE AUX ROIS"
+	title.text = "SALON : COURSE AUX ROIS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Palette.KING)
@@ -94,7 +94,7 @@ func _refresh() -> void:
 	var n := Net.players.size()
 	var rm := Net.room()
 	if rm != "" and rm != "PUBLIC":
-		_hint.text = "SALON  %s   ·   %d joueur%s   —   partage le code à ton ami" % [rm, n, "s" if n > 1 else ""]
+		_hint.text = "SALON  %s   ·   %d joueur%s   ·   partage le code à ton ami" % [rm, n, "s" if n > 1 else ""]
 	else:
 		_hint.text = "%d joueur%s dans le salon" % [n, "s" if n > 1 else ""]
 	for p in Net.players:
@@ -120,7 +120,9 @@ func _refresh() -> void:
 		rl.add_theme_color_override("font_color", Palette.ACCENT_GREEN_LIT if p.get("ready", false) else Palette.TEXT_MUTE)
 		hb.add_child(rl)
 		_list.add_child(h)
-	_start_btn.visible = true
+	# Seul le host (siege 0 en activite Nodyx, plus ancien pair en WS, le joueur
+	# local en solo) voit le bouton de lancement.
+	_start_btn.visible = Net.is_host()
 	_start_btn.disabled = n < 2
 
 

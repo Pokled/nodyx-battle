@@ -1,11 +1,12 @@
 class_name NetNodyx
 extends NetBackend
-## Backend `nodyx` : le jeu tourne comme WIDGET dans un salon vocal Nodyx.  Les
-## membres du salon SONT le roster ; la voix reste 100 % Nodyx (mesh WebRTC P2P) ;
-## le meme mesh P2P transporte nos messages/snapshots (repli Socket.IO room).
+## Backend `nodyx` : le jeu tourne comme ACTIVITE dans un salon vocal Nodyx.  Les
+## membres du salon SONT le roster ; la voix reste 100 % Nodyx ; l'hote de la page
+## relaie nos messages/snapshots dans la room `voice:<channelId>` via le socket
+## deja authentifie de l'utilisateur (l'activite n'a ni socket ni token propre).
 ##
-## Contrat cote page (implemente par `widget/nodyx-battle/nodyx-battle.js`, injecte
-## dans l'iframe du jeu) :
+## Contrat cote page (implemente par `widget/nodyx-battle/nodyx-activity.js`,
+## charge dans le <head> de l'export web AVANT index.js) :
 ##   window.NodyxBattle = {
 ##     me()            -> {id, name, avatar}
 ##     isHost()        -> bool
@@ -78,6 +79,9 @@ func broadcast_snapshot(bytes: PackedByteArray) -> void:
 
 func _on_lobby(args: Array) -> void:
 	var v = JSON.parse_string(String(args[0])) if args.size() > 0 else []
+	# Le host (siege 0) peut changer si quelqu'un quitte le salon : on le
+	# reevalue a chaque mise a jour du roster.
+	if _js: is_host = bool(_js.isHost())
 	lobby_changed.emit(v if v is Array else [])
 
 

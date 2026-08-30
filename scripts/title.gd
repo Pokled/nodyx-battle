@@ -9,6 +9,17 @@ var _title: Label
 
 
 func _ready() -> void:
+	# activite Nodyx : le jeu est embarque dans un salon vocal. Le pont
+	# nodyx-activity.js est deja defini a ce stade ; on attend juste que la
+	# poignee de main hote ait livre le roster (window.NodyxBattle.__ready),
+	# puis on saute directement dans le salon avec le backend "nodyx".
+	if OS.has_feature("web"):
+		var w = JavaScriptBridge.get_interface("window")
+		if w != null and w.NodyxBattle:
+			if await _enter_nodyx_activity():
+				return
+			# l'hote n'a jamais repondu : on retombe sur l'ecran-titre normal.
+
 	# lien de partie directe : ?room=CODE (+ ?host=) -> on saute dans le salon
 	if Net.cmdline_opt("room") != "" or Net.cmdline_opt("code") != "":
 		GameState.mode = GameState.Mode.DUEL
@@ -67,7 +78,7 @@ func _ready() -> void:
 	box.add_child(_title)
 
 	var sub := Label.new()
-	sub.text = "Tower defense  —  farme le minerai, construis ton labyrinthe, tiens la ligne."
+	sub.text = "Tower defense : farme le minerai, construis ton labyrinthe, tiens la ligne."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", 15)
 	sub.add_theme_color_override("font_color", Palette.TEXT_DIM)
@@ -109,6 +120,24 @@ func _ready() -> void:
 	credit.add_theme_font_size_override("font_size", 10)
 	credit.add_theme_color_override("font_color", Palette.TEXT_DIM.darkened(0.3))
 	box.add_child(credit)
+
+
+## Attend la fin de la poignee de main hote (max ~8 s), puis bascule dans le
+## salon avec le backend "nodyx". Renvoie false si l'hote n'a jamais repondu.
+func _enter_nodyx_activity() -> bool:
+	var waited := 0.0
+	while waited < 8.0 and not bool(JavaScriptBridge.eval(
+			"!!(window.NodyxBattle && window.NodyxBattle.__ready)", true)):
+		await get_tree().create_timer(0.1).timeout
+		waited += 0.1
+	if not bool(JavaScriptBridge.eval("!!(window.NodyxBattle && window.NodyxBattle.__ready)", true)):
+		return false
+	GameState.mode = GameState.Mode.DUEL
+	Meta.reset()
+	Net.configure("nodyx")
+	Net.open({})
+	get_tree().change_scene_to_file.call_deferred("res://scenes/lobby.tscn")
+	return true
 
 
 func _process(delta: float) -> void:

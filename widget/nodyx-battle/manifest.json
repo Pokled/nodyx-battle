@@ -1,9 +1,12 @@
 {
   "api": 1,
   "id": "kings-race",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
-  "author": { "name": "jaronoah" },
+  "author": {
+    "name": "jaronoah"
+  },
+  "source": "https://github.com/Pokled/nodyx-battle",
   "default_locale": "en",
   "label": "@label",
   "description": "@description",
@@ -11,31 +14,24 @@
   "family": "gaming",
   "surfaces": [
     {
-      "type": "widget",
-      "id": "launcher",
-      "entry": "ui/widget.js",
+      "type": "activity",
+      "id": "battle",
+      "entry": "index.html",
       "label": "@label",
       "description": "@description",
-      "default_height": 240,
-      "schema": [
-        {
-          "key": "game_url",
-          "type": "url",
-          "label": "@field.game_url",
-          "hint": "@field.game_url.hint",
-          "required": true
-        },
-        {
-          "key": "relay_host",
-          "type": "text",
-          "label": "@field.relay",
-          "hint": "@field.relay.hint",
-          "required": true
-        }
-      ]
+      "default_aspect": "16:9"
     }
   ],
+  "app": {
+    "url": "https://github.com/Pokled/nodyx-battle/releases/download/v0.3.0/kings-race-app-0.3.0.zip",
+    "sha256": "ad05e364a6ab1aa1d3107e1b982f97238471e81c937bb873ccab7f3b0bbead75",
+    "bytes": 24484558
+  },
   "permissions": {
-    "identity": ["username"]
+    "identity": [
+      "username",
+      "avatar"
+    ],
+    "realtime": true
   }
 }

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>NodyxBattle : mock parent (Nodyx Activities)</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0a0a0f; color: #d8dee9;
+    font: 13px/1.5 system-ui, sans-serif;
+  }
+  header {
+    padding: 8px 14px; background: #12121a; border-bottom: 1px solid #23232e;
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+  }
+  header h1 { font-size: 14px; margin: 0; font-weight: 700; letter-spacing: .02em; }
+  header .stat { color: #8b93a7; font-variant-numeric: tabular-nums; }
+  header .stat b { color: #e6b84d; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #23232e; }
+  .cell { background: #0a0a0f; display: flex; flex-direction: column; min-width: 0; }
+  .cell .who {
+    padding: 4px 10px; font-size: 12px; font-weight: 700;
+    background: #16161f; border-bottom: 1px solid #23232e;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .cell .who .seat { color: #8b93a7; font-weight: 400; }
+  .cell iframe { flex: 1; width: 100%; border: 0; display: block; background: #000; min-height: 0; }
+  .grid { height: calc(100vh - 42px); }
+  #log {
+    position: fixed; right: 8px; bottom: 8px; width: 380px; max-height: 40vh; overflow: auto;
+    background: #0d0d14ee; border: 1px solid #23232e; border-radius: 6px; padding: 6px 8px;
+    font: 11px/1.45 ui-monospace, monospace; color: #9aa3b2; white-space: pre-wrap;
+  }
+  #log .s { color: #6bade5; }
+  #log .r { color: #73cc8c; }
+  #log .k { color: #e6b84d; }
+</style>
+</head>
+<body>
+<header>
+  <h1>NodyxBattle · mock parent</h1>
+  <span class="stat">msg relayes <b id="m-count">0</b></span>
+  <span class="stat">snap relayes <b id="s-count">0</b> · <b id="s-hz">0</b> Hz · <b id="s-max">0</b> o max</span>
+  <span class="stat" id="phase">lobby</span>
+</header>
+
+<div class="grid">
+  <div class="cell">
+    <div class="who">Alice <span class="seat">siege 0 · host</span></div>
+    <iframe id="f0" src="index.html" allow="autoplay; fullscreen"></iframe>
+  </div>
+  <div class="cell">
+    <div class="who">Bob <span class="seat">siege 1</span></div>
+    <iframe id="f1" src="index.html" allow="autoplay; fullscreen"></iframe>
+  </div>
+</div>
+
+<pre id="log"></pre>
+
+<script>
+// --- Le roster simule (ce que l'hote Nodyx tirerait de voice:channel_update) ---
+const MEMBERS = [
+  { id: 'u-alice', name: 'Alice', avatar_url: '', seatIndex: 0, speaking: false },
+  { id: 'u-bob',   name: 'Bob',   avatar_url: '', seatIndex: 1, speaking: false },
+]
+
+const PANES = [
+  { frameId: 'f0', user: { id: 'u-alice', name: 'Alice', avatar: '' } },
+  { frameId: 'f1', user: { id: 'u-bob',   name: 'Bob',   avatar: '' } },
+]
+
+const logEl = document.getElementById('log')
+const counters = { msg: 0, snap: 0, snapMax: 0 }
+let snapWindow = []
+
+function log(cls, txt) {
+  const line = document.createElement('span')
+  line.className = cls
+  line.textContent = txt + '\n'
+  logEl.appendChild(line)
+  logEl.scrollTop = logEl.scrollHeight
+  while (logEl.childNodes.length > 400) logEl.removeChild(logEl.firstChild)
+}
+
+function bumpSnapHz() {
+  const now = performance.now()
+  snapWindow.push(now)
+  snapWindow = snapWindow.filter(t => now - t < 1000)
+  document.getElementById('s-hz').textContent = snapWindow.length
+}
+
+// --- Un "pane" = une iframe du jeu + le port qui la relie a ce parent ---
+class Pane {
+  constructor(spec) {
+    this.frame = document.getElementById(spec.frameId)
+    this.user = spec.user
+    this.port = null
+    this.ready = false
+    window.addEventListener('message', (e) => {
+      if (e.source !== this.frame.contentWindow) return
+      if (e.data && e.data.type === 'nodyx:hello') this._boot()
+    })
+  }
+
+  _boot() {
+    const ch = new MessageChannel()
+    this.port = ch.port1
+    this.port.onmessage = (e) => this._fromGuest(e.data || {})
+    this.port.start()
+    this.frame.contentWindow.postMessage({
+      p: 1,
+      type: 'nodyx:activity-boot',
+      activity: 'kings-race',
+      version: '0.0.0-mock',
+      channelHint: 'mock-voice-channel',
+      user: this.user,
+      members: MEMBERS,
+      locale: 'fr',
+      theme: {},
+    }, '*', [ch.port2])
+    log('k', `[${this.user.name}] boot envoye`)
+  }
+
+  toGuest(obj) { if (this.port) this.port.postMessage(obj) }
+
+  _fromGuest(d) {
+    if (d.event === 'ready') { this.ready = true; log('k', `[${this.user.name}] pret (handshake)`); return }
+    if (d.event === 'error') { log('k', `[${this.user.name}] ERREUR de demarrage`); return }
+
+    switch (d.type) {
+      case 'room.send':   return relaySend(this, d)
+      case 'room.snapshot': return relaySnapshot(this, d)
+      case 'room.sync':   return relaySync(this)
+      case 'ui.toast':    return log('r', `[${this.user.name}] toast: ${d.message}`)
+    }
+  }
+}
+
+const panes = PANES.map(s => new Pane(s))
+const other = (p) => panes.find(x => x !== p)
+
+// --- Le relais : exactement ce que socket/activity.ts fera cote serveur ---
+// (pas d'echo a l'emetteur ; `to` cible un userId ; payload opaque)
+function relaySend(from, d) {
+  counters.msg++
+  document.getElementById('m-count').textContent = counters.msg
+  const targets = d.to ? panes.filter(p => p.user.id === d.to) : panes.filter(p => p !== from)
+  for (const t of targets) t.toGuest({ event: 'msg', from: from.user.id, payload: d.payload })
+
+  const k = d.payload && d.payload.k
+  if (k === 'match_start') { document.getElementById('phase').textContent = 'match'; log('s', `[${from.user.name}] match_start seed=${d.payload.seed}`) }
+  else if (k === 'lobby_ready') log('s', `[${from.user.name}] lobby_ready ${d.payload.on}`)
+  else if (k === 'game') log('s', `[${from.user.name}] cmd:${d.payload.ch} ${JSON.stringify(d.payload.body).slice(0, 80)}`)
+}
+
+function relaySnapshot(from, d) {
+  counters.snap++
+  document.getElementById('s-count').textContent = counters.snap
+  const bytes = (d.blob ? d.blob.length : 0) * 3 / 4 | 0
+  if (bytes > counters.snapMax) { counters.snapMax = bytes; document.getElementById('s-max').textContent = bytes }
+  bumpSnapHz()
+  for (const t of panes) if (t !== from) t.toGuest({ event: 'snap', from: from.user.id, blob: d.blob })
+}
+
+function relaySync(from) {
+  for (const t of panes) if (t !== from) t.toGuest({ event: 'sync', from: from.user.id })
+}
+
+// --- Bonus : bouton "parle" pour tester l'anneau vocal en jeu ---
+document.addEventListener('keydown', (e) => {
+  if (e.key === '1' || e.key === '2') {
+    const idx = e.key === '1' ? 0 : 1
+    const on = MEMBERS[idx].speaking = !MEMBERS[idx].speaking
+    for (const p of panes) p.toGuest({ event: 'speaking', userId: MEMBERS[idx].id, speaking: on })
+    log('k', `${MEMBERS[idx].name} ${on ? 'parle' : 'se tait'} (touche ${e.key})`)
+  }
+})
+log('k', 'pret. Touches 1/2 = simuler la parole. Le siege 0 (Alice) est host.')
+</script>
+</body>
+</html>
