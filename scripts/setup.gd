@@ -93,12 +93,23 @@ func _ready() -> void:
 	col.add_child(_count)
 
 	# Records du joueur + classement de l'instance (activite Nodyx seulement).
+	# Ancre en HAUT de l'ecran, hors du VBox central (deja charge).
 	if GameState.in_nodyx_activity:
+		var rp := PanelContainer.new()
+		rp.add_theme_stylebox_override("panel", HudKit.sb_panel(true))
+		rp.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		rp.offset_left = -290
+		rp.offset_right = 290
+		rp.offset_top = 8
+		add_child(rp)
 		_records_box = VBoxContainer.new()
-		_records_box.add_theme_constant_override("separation", 3)
-		col.add_child(_records_box)
+		_records_box.add_theme_constant_override("separation", 2)
+		rp.add_child(_records_box)
 		Records.changed.connect(_refresh_records)
 		_refresh_records()
+		# Les lectures /storage sont asynchrones : on rafraichit quelques fois.
+		for i in 6:
+			get_tree().create_timer(0.6 * (i + 1)).timeout.connect(_refresh_records)
 
 	for id in Specs.ORDER:
 		col.add_child(_make_card(id))
@@ -221,34 +232,53 @@ func _refresh() -> void:
 	_start.disabled = _chosen.size() != 3
 
 
-## Carte "TES RECORDS" + top 5 de l'instance. Alimentee par l'autoload Records
-## (lecture asynchrone : peut arriver quelques secondes apres l'ouverture).
+## Panneau "TES RECORDS" + classement de l'instance. Toujours visible en
+## activite Nodyx ; alimente par l'autoload Records (lecture /storage async).
 func _refresh_records() -> void:
 	if not is_instance_valid(_records_box):
 		return
 	for c in _records_box.get_children():
 		c.queue_free()
+
+	var title := Label.new()
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 13)
+	title.add_theme_color_override("font_color", Palette.KING)
+	title.text = "TES RECORDS"
+	_records_box.add_child(title)
+
 	var s: Dictionary = Records.stats
-	if not s.is_empty():
-		var line := Label.new()
-		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		line.add_theme_font_size_override("font_size", 12)
-		line.add_theme_color_override("font_color", Palette.KING)
-		line.text = "TES RECORDS   ·   %d parties   ·   %d victoires   ·   meilleure vague %d" % [
-			int(s.get("games", 0)), int(s.get("wins", 0)), int(s.get("best_wave", 0))]
-		_records_box.add_child(line)
+	var line := Label.new()
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.add_theme_font_size_override("font_size", 12)
+	line.add_theme_color_override("font_color", Palette.TEXT)
+	if s.is_empty() or int(s.get("games", 0)) == 0:
+		line.text = "aucune partie enregistree pour l'instant"
+		line.add_theme_color_override("font_color", Palette.TEXT_DIM)
+	else:
+		line.text = "%d parties   ·   %d victoires   ·   %d defaites   ·   meilleure vague %d" % [
+			int(s.get("games", 0)), int(s.get("wins", 0)),
+			int(s.get("losses", 0)), int(s.get("best_wave", 0))]
+	_records_box.add_child(line)
+
 	var board: Array = Records.leaderboard
 	if not board.is_empty():
 		var head := Label.new()
 		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		head.add_theme_font_size_override("font_size", 11)
 		head.add_theme_color_override("font_color", Palette.TEXT_DIM)
-		var parts: Array = []
-		for i in mini(5, board.size()):
-			var e: Dictionary = board[i]
-			parts.append("%d. %s (%d)" % [i + 1, String(e.get("name", "?")), int(e.get("wins", 0))])
-		head.text = "CLASSEMENT DE L'INSTANCE   ·   " + "   ".join(parts)
+		head.text = "— CLASSEMENT DE L'INSTANCE —"
 		_records_box.add_child(head)
+		for i in mini(3, board.size()):
+			var e: Dictionary = board[i]
+			var row := Label.new()
+			row.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			row.add_theme_font_size_override("font_size", 12)
+			row.add_theme_color_override("font_color", Palette.TEXT if i > 0 else Palette.KING)
+			row.text = "%d.  %s   —   %d victoire%s  (%d parties)" % [
+				i + 1, String(e.get("name", "?")), int(e.get("wins", 0)),
+				"s" if int(e.get("wins", 0)) > 1 else "", int(e.get("games", 0))]
+			_records_box.add_child(row)
 
 
 func _gen_code() -> String:
