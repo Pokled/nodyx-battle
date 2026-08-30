@@ -44,11 +44,15 @@ cp "$ROOT/widget/nodyx-battle/nodyx-activity.js" "$OUT/"
 
 # ── Bundle applicatif : le zip que l'instance Nodyx telecharge une fois ──────
 # (mock-parent.html est un outil de dev : HORS du bundle)
+# Zip DETERMINISTE : l'empreinte va dans le manifeste et doit valoir pour
+# toujours. Ordre de fichiers fixe, mtime figee, pas d'attributs superflus.
 DIST="$ROOT/dist"; mkdir -p "$DIST"
 VERSION="$(python3 -c "import json;print(json.load(open('$ROOT/widget/nodyx-battle/manifest.json'))['version'])")"
 ZIP="$DIST/kings-race-app-$VERSION.zip"
 rm -f "$ZIP"
-( cd "$OUT" && zip -q -r -X "$ZIP" . -x 'mock-parent.html' )
+( cd "$OUT" \
+  && find . -type f ! -name 'mock-parent.html' -exec touch -d '2020-01-01T00:00:00Z' {} + \
+  && find . -type f ! -name 'mock-parent.html' | LC_ALL=C sort | zip -q -X -D "$ZIP" -@ )
 
 # Empreinte + taille, injectees dans le manifeste (pack_widget.sh les relira).
 python3 - "$ROOT" "$ZIP" <<'PY'

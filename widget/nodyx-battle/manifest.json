@@ -24,8 +24,8 @@
   ],
   "app": {
     "url": "https://github.com/Pokled/nodyx-battle/releases/download/v0.3.0/kings-race-app-0.3.0.zip",
-    "sha256": "ad05e364a6ab1aa1d3107e1b982f97238471e81c937bb873ccab7f3b0bbead75",
-    "bytes": 24484558
+    "sha256": "1b9f37b2853689c11cd7febf04eaa386a53dc1e848fc9fc92cb6b887df6fe4bc",
+    "bytes": 24482754
   },
   "permissions": {
     "identity": [
