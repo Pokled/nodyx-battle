@@ -240,45 +240,31 @@ func _refresh_records() -> void:
 	for c in _records_box.get_children():
 		c.queue_free()
 
-	var title := Label.new()
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 13)
-	title.add_theme_color_override("font_color", Palette.KING)
-	title.text = "TES RECORDS"
-	_records_box.add_child(title)
-
 	var s: Dictionary = Records.stats
 	var line := Label.new()
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	line.add_theme_font_size_override("font_size", 12)
-	line.add_theme_color_override("font_color", Palette.TEXT)
 	if s.is_empty() or int(s.get("games", 0)) == 0:
-		line.text = "aucune partie enregistree pour l'instant"
 		line.add_theme_color_override("font_color", Palette.TEXT_DIM)
+		line.text = "TES RECORDS  ·  aucune partie enregistree"
 	else:
-		line.text = "%d parties   ·   %d victoires   ·   %d defaites   ·   meilleure vague %d" % [
-			int(s.get("games", 0)), int(s.get("wins", 0)),
-			int(s.get("losses", 0)), int(s.get("best_wave", 0))]
+		line.add_theme_color_override("font_color", Palette.TEXT)
+		line.text = "TES RECORDS  ·  %d parties  ·  %d victoires  ·  meilleure vague %d" % [
+			int(s.get("games", 0)), int(s.get("wins", 0)), int(s.get("best_wave", 0))]
 	_records_box.add_child(line)
 
 	var board: Array = Records.leaderboard
 	if not board.is_empty():
-		var head := Label.new()
-		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		head.add_theme_font_size_override("font_size", 11)
-		head.add_theme_color_override("font_color", Palette.TEXT_DIM)
-		head.text = "— CLASSEMENT DE L'INSTANCE —"
-		_records_box.add_child(head)
+		var parts := PackedStringArray()
 		for i in mini(3, board.size()):
 			var e: Dictionary = board[i]
-			var row := Label.new()
-			row.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			row.add_theme_font_size_override("font_size", 12)
-			row.add_theme_color_override("font_color", Palette.TEXT if i > 0 else Palette.KING)
-			row.text = "%d.  %s   —   %d victoire%s  (%d parties)" % [
-				i + 1, String(e.get("name", "?")), int(e.get("wins", 0)),
-				"s" if int(e.get("wins", 0)) > 1 else "", int(e.get("games", 0))]
-			_records_box.add_child(row)
+			parts.append("%d. %s (%d)" % [i + 1, String(e.get("name", "?")), int(e.get("wins", 0))])
+		var row := Label.new()
+		row.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		row.add_theme_font_size_override("font_size", 11)
+		row.add_theme_color_override("font_color", Palette.KING)
+		row.text = "CLASSEMENT  ·  " + "   ".join(parts)
+		_records_box.add_child(row)
 
 
 func _gen_code() -> String:

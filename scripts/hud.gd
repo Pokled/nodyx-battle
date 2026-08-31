@@ -1453,6 +1453,12 @@ func _build_gameover() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_color_override("font_color", Palette.TEXT_DIM)
 	box.add_child(sub)
+	var rec := Label.new()
+	rec.name = "rec"
+	rec.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	rec.add_theme_font_size_override("font_size", 13)
+	rec.visible = false
+	box.add_child(rec)
 	var cont := _accent_button("CONTINUER  ·  mode sans fin", func():
 		_over.visible = false
 		GameState.resume_endless())
@@ -1593,8 +1599,36 @@ func _on_game_over(win: bool) -> void:
 			sub.text = "Le roi est tombe a la vague %d." % GameState.wave
 	if cont:
 		cont.visible = win and not duel
+	var rec := _over.find_child("rec", true, false)
+	if rec:
+		_fill_over_records(rec)
 	_over.visible = true
 	_update_buttons()
+
+
+## Ligne records sur l'ecran de fin : stats a jour + tete du classement.
+## N'apparait qu'en activite Nodyx (l'autoload Records a un pont).
+func _fill_over_records(rec: Label) -> void:
+	if not GameState.in_nodyx_activity:
+		rec.visible = false
+		return
+	var s: Dictionary = Records.stats
+	var parts := PackedStringArray()
+	if Records.beat_record:
+		rec.add_theme_color_override("font_color", Palette.KING)
+		parts.append("NOUVEAU RECORD  ·  vague %d" % int(s.get("best_wave", 0)))
+	else:
+		rec.add_theme_color_override("font_color", Palette.TEXT_DIM)
+		if not s.is_empty():
+			parts.append("%d parties  ·  %d victoires  ·  record vague %d" % [
+				int(s.get("games", 0)), int(s.get("wins", 0)), int(s.get("best_wave", 0))])
+	var board: Array = Records.leaderboard
+	if not board.is_empty():
+		var top: Dictionary = board[0]
+		parts.append("classement : %s en tete (%d victoires)" % [
+			String(top.get("name", "?")), int(top.get("wins", 0))])
+	rec.text = "\n".join(parts)
+	rec.visible = parts.size() > 0
 
 
 func _show_recap() -> void:

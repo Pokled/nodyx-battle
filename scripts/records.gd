@@ -14,6 +14,7 @@ signal changed
 
 var stats: Dictionary = {}        ## {games, wins, losses, best_wave}
 var leaderboard: Array = []        ## [{id, name, wins, games}] trie, plafonne a 20
+var beat_record := false           ## la derniere partie a battu la meilleure vague
 
 var _js: JavaScriptObject = null
 var _recorded := false             ## une seule ecriture par partie
@@ -23,7 +24,10 @@ func _ready() -> void:
 	if not _bridge():
 		return
 	# Nouvelle partie : GameState.reset() (main.gd) emet wave_changed(0).
-	GameState.wave_changed.connect(func(w): if w == 0: _recorded = false)
+	GameState.wave_changed.connect(func(w):
+		if w == 0:
+			_recorded = false
+			beat_record = false)
 	MatchDirector.match_over.connect(_on_match_over)
 	GameState.game_over.connect(_on_solo_over)
 	_js.call("loadStats")
@@ -76,6 +80,7 @@ func _bump_stats(won: bool, wave: int) -> void:
 		s["losses"] = int(s.get("losses", 0)) + 1
 	if wave > int(s.get("best_wave", 0)):
 		s["best_wave"] = wave
+		beat_record = wave > 0
 	stats = s
 	changed.emit()
 	if _bridge():
