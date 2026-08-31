@@ -51,7 +51,7 @@ func _ready() -> void:
 	_mode_btns["solo"] = _mode_button(modes, "solo",
 		"CAMPAGNE SOLO", "vagues neutres · victoire vague 20 puis sans fin")
 	_mode_btns["local"] = _mode_button(modes, "local",
-		"CONTRE L'IA", "course aux rois contre un adversaire bot · pour s'entraîner")
+		"CONTRE L'IA", "duel : un roi adverse, tes assauts font des degats, renfort en fin de vague")
 	if GameState.in_nodyx_activity:
 		_mode_btns["voice"] = _mode_button(modes, "voice",
 			"COURSE AUX ROIS", "FFA avec les membres de ce canal vocal · dernier roi debout")
@@ -286,12 +286,11 @@ func _begin() -> void:
 			Net.open({})
 			get_tree().change_scene_to_file("res://scenes/lobby.tscn")
 		"local":
-			Net.configure("local")
-			var lo := {"bots": 1, "difficulty": 1.0}
-			if PlayerAvatars.local_name != "":
-				lo["name"] = PlayerAvatars.local_name
-			Net.open(lo)
-			get_tree().change_scene_to_file("res://scenes/lobby.tscn")
+			# CONTRE L'IA = le DUEL classique (autoload Versus) : roi adverse
+			# visible, degats a chaque assaut, renfort du roi (3 cartes) en fin
+			# de vague. Pas de MatchDirector -> Versus.active() prend la main.
+			Net.leave()
+			get_tree().change_scene_to_file("res://scenes/main.tscn")
 		"online":
 			var code := _code_edit.text.strip_edges().to_upper()
 			if code == "":

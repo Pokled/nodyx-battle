@@ -83,12 +83,11 @@ func _ready() -> void:
 	_ai_btn.text = "JOUER CONTRE L'IA"
 	HudKit.btn_neutral(_ai_btn)
 	_ai_btn.pressed.connect(func():
+		# Le DUEL classique (Versus) : roi adverse visible, degats, 3 cartes.
+		# main._ready fait Meta.reset()+apply_specs (garde les specs choisies).
 		Net.leave()
-		Net.configure("local")
-		var lo := {"bots": 1, "difficulty": 1.0}
-		if PlayerAvatars.local_name != "":
-			lo["name"] = PlayerAvatars.local_name
-		Net.open(lo))
+		GameState.mode = GameState.Mode.DUEL
+		get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	row.add_child(_ai_btn)
 
 	Net.lobby_changed.connect(func(_p): _refresh())
