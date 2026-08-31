@@ -1,7 +1,7 @@
 {
   "api": 1,
   "id": "kings-race",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "license": "MIT",
   "author": {
     "name": "jaronoah"
@@ -23,9 +23,9 @@
     }
   ],
   "app": {
-    "url": "https://github.com/Pokled/nodyx-battle/releases/download/v0.4.6/kings-race-app-0.4.6.zip",
-    "sha256": "6afd909e01f6430b1c9bf533fecd3f647a1ee9913b763320bce6b74ea3439ff4",
-    "bytes": 15115496
+    "url": "https://github.com/Pokled/nodyx-battle/releases/download/v0.4.7/kings-race-app-0.4.7.zip",
+    "sha256": "6eeec62150e73c505088acd6a3359e4d45cbce90b11a5134ff36d03aa13f1967",
+    "bytes": 15115391
   },
   "permissions": {
     "identity": [
