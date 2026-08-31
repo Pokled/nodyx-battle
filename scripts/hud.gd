@@ -106,6 +106,10 @@ func _ready() -> void:
 		MatchDirector.player_digest.connect(func(_id, _d): _on_match_roster())
 		MatchDirector.incoming_changed.connect(func(): if is_instance_valid(_troop_list): _rebuild_troops())
 		MatchDirector.phase_changed.connect(_on_match_phase)
+		MatchDirector.resync_pending.connect(func():
+			banner("RECONNEXION...", Palette.TEXT_TITLE, 2.0))
+		MatchDirector.resumed.connect(func():
+			banner("RECONNECTE  ·  tu rejoues a la prochaine manche", Palette.HP_GOOD, 3.5))
 		Net.speaking_changed.connect(func(id, on):
 			if _chips.has(id) and is_instance_valid(_chips[id]): _chips[id].speaking = on)
 		PlayerAvatars.changed.connect(func(id):

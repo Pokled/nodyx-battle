@@ -11,6 +11,8 @@ signal player_digest(id: String, digest: Dictionary)
 signal player_eliminated(id: String)
 signal match_over(winner_id: String)
 signal incoming_changed
+signal resync_pending                             ## on a rejoint, on attend l'etat de l'hote
+signal resumed                                    ## etat du match restaure apres reconnexion
 
 enum Phase { IDLE, BUILD, COMBAT, DONE }
 
@@ -139,6 +141,7 @@ func attach(arena: Node, gs: Node, waves: Node) -> void:
 		# n'est pas encore arrive : on le demande et on patiente en spectateur.
 		phase = Phase.COMBAT
 		phase_changed.emit(phase)
+		resync_pending.emit()
 		Net.send("cmd", {"t": "resync_plz"})
 		_resync_wait = 6.0    # filet : personne ne repond -> on repart en BUILD
 		return
@@ -423,6 +426,7 @@ func _apply_match_state(p: Dictionary) -> void:
 	_resync_wait = -1.0
 	roster_changed.emit()
 	phase_changed.emit(phase)
+	resumed.emit()
 
 
 # --- diffusion du digest local (appele par main durant COMBAT) ----
