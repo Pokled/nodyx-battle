@@ -111,7 +111,8 @@ func _ready() -> void:
 		MatchDirector.resumed.connect(func():
 			banner("RECONNECTE  ·  tu rejoues a la prochaine manche", Palette.HP_GOOD, 3.5))
 		Net.speaking_changed.connect(func(id, on):
-			if _chips.has(id) and is_instance_valid(_chips[id]): _chips[id].speaking = on)
+			if _chips.has(id) and is_instance_valid(_chips[id]): _chips[id].speaking = on
+			if id == Net.local_id() and is_instance_valid(_king_panel): _king_panel.speaking = on)
 		PlayerAvatars.changed.connect(func(id):
 			if _chips.has(id) and is_instance_valid(_chips[id]): _chips[id].av = PlayerAvatars.tex(id))
 		GameState.nourriture_changed.connect(func(_v):
@@ -705,6 +706,8 @@ func _build_top_bar() -> void:
 	_king_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_king_panel.player_name = PlayerAvatars.local_name
 	_king_panel.av = PlayerAvatars.local_tex
+	if match_on:
+		_king_panel.speaking = Net.speaking.get(Net.local_id(), false)
 	PlayerAvatars.local_ready.connect(func():
 		if is_instance_valid(_king_panel):
 			_king_panel.player_name = PlayerAvatars.local_name
@@ -819,15 +822,18 @@ class _KingPanel extends Control:
 	var is_ai := false
 	var av: Texture2D = null       ## avatar Nodyx du joueur local
 	var player_name := ""          ## pseudo Nodyx du joueur local
+	var speaking := false          ## micro actif (activite Nodyx)
 	var _hp := 1.0
 	var _hp_shown := 1.0
 	var _cur := 100
 	var _max := 100
 	var _def := 0.0
 	var _flash := 0.0
+	var _pulse := 0.0
 	func _process(d: float) -> void:
 		_hp_shown = move_toward(_hp_shown, _hp, d * 1.6)
 		_flash = maxf(0.0, _flash - d * 3.0)
+		_pulse += d
 		queue_redraw()
 	func set_hp(cur: int, mx: int) -> void:
 		if cur < _cur:
@@ -847,6 +853,9 @@ class _KingPanel extends Control:
 		draw_line(Vector2(2, h - 1.5), Vector2(w - 2, h - 1.5), Palette.BEVEL_LO, 1.5)
 		# medaillon : avatar Nodyx (toi) / couronne (toi, sans avatar) / crane (IA)
 		var mc := Vector2(30, h * 0.5)
+		if speaking and not is_ai:
+			var p := 0.5 + 0.5 * sin(_pulse * 9.0)
+			draw_circle(mc, 23.0 + p * 3.0, Color(0.42, 0.86, 0.53, 0.30 + 0.35 * p))
 		draw_circle(mc, 21, Color(0.13, 0.11, 0.09))
 		if av != null and not is_ai:
 			draw_texture_rect(av, Rect2(mc - Vector2(19, 19), Vector2(38, 38)), false)
