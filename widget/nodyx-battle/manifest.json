@@ -4,7 +4,7 @@
   "version": "0.4.7",
   "license": "MIT",
   "author": {
-    "name": "jaronoah"
+    "name": "Pokled"
   },
   "source": "https://github.com/Pokled/nodyx-battle",
   "default_locale": "en",
@@ -38,5 +38,11 @@
       "instance": "64kb",
       "instance_write": true
     }
-  }
+  },
+  "tagline": "@tagline",
+  "screenshots": [
+    "media/cover.webp",
+    "media/shot1.webp",
+    "media/shot2.webp"
+  ]
 }
