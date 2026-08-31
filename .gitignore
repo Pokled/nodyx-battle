@@ -19,3 +19,6 @@ scratch_*.png.import
 .claude/
 .vscode/
 .idea/
+
+# widget assets : importés par l'éditeur, pas versionnés
+widget/nodyx-battle/media/*.import

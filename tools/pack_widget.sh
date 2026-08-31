@@ -26,6 +26,8 @@ out = root / "dist"; out.mkdir(exist_ok=True)
 nyx = out / f"{name}-{ver}.nyx"
 if nyx.exists(): nyx.unlink()
 files = ["manifest.json", "icon.svg", "README.md", "i18n/en.json", "i18n/fr.json"]
+IMG = {".png", ".jpg", ".jpeg", ".webp", ".svg"}
+files += [f"media/{p.name}" for p in sorted((src / "media").glob("*")) if p.suffix.lower() in IMG]
 with zipfile.ZipFile(nyx, "w", zipfile.ZIP_DEFLATED) as z:
     for rel in files:
         p = src / rel
